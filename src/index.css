@@ -1,0 +1,230 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Mochi Teacher Dashboard Design System - Soft, Friendly, Child-Education Aesthetic */
+
+@layer base {
+  :root {
+    /* Core palette - Soft pastels */
+    --background: 200 20% 96%;
+    --foreground: 220 20% 20%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 220 20% 20%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 20% 20%;
+
+    /* Primary - Soft Sky Blue */
+    --primary: 195 70% 50%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary - Light Gray */
+    --secondary: 200 15% 94%;
+    --secondary-foreground: 220 20% 25%;
+
+    /* Muted */
+    --muted: 200 15% 92%;
+    --muted-foreground: 220 10% 45%;
+
+    /* Accent - Soft Mint */
+    --accent: 150 50% 90%;
+    --accent-foreground: 150 60% 25%;
+
+    /* Success - Soft Green */
+    --success: 145 60% 45%;
+    --success-foreground: 0 0% 100%;
+
+    /* Warning - Soft Coral/Red */
+    --warning: 0 70% 60%;
+    --warning-foreground: 0 0% 100%;
+
+    /* Play hover - sky-500 */
+    --play-hover:56 189% 100%;
+    --play-hover-foreground:56 189% 248%;
+
+    /* Info - Light Blue Card Background */
+    --info: 195 60% 92%;
+    --info-foreground: 195 70% 35%;
+
+    /* Feature card backgrounds */
+    --card-mochi: 195 60% 92%;
+    --card-stats-green: 145 50% 92%;
+    --card-stats-yellow: 48 80% 92%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 200 20% 90%;
+    --input: 200 20% 90%;
+    --ring: 195 70% 50%;
+
+    --radius: 1rem;
+
+    /* Login specific colors */
+    --login-bg: 200 20% 96%;
+    --login-card: 0 0% 100%;
+    --login-input: 200 20% 94%;
+    --login-button: 195 70% 50%;
+    --login-button-hover: 195 70% 45%;
+    --login-link: 195 70% 50%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 220 20% 10%;
+    --foreground: 200 20% 95%;
+
+    --card: 220 20% 14%;
+    --card-foreground: 200 20% 95%;
+
+    --popover: 220 20% 14%;
+    --popover-foreground: 200 20% 95%;
+
+    --primary: 195 70% 55%;
+    --primary-foreground: 220 20% 10%;
+
+    --secondary: 220 15% 20%;
+    --secondary-foreground: 200 20% 90%;
+
+    --muted: 220 15% 18%;
+    --muted-foreground: 200 10% 60%;
+
+    --accent: 150 40% 25%;
+    --accent-foreground: 150 50% 90%;
+
+    --success: 145 60% 40%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 0 60% 50%;
+    --warning-foreground: 0 0% 100%;
+
+    --info: 195 40% 20%;
+    --info-foreground: 195 60% 80%;
+
+    --card-mochi: 195 40% 18%;
+    --card-stats-green: 145 40% 18%;
+    --card-stats-yellow: 48 50% 18%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 15% 22%;
+    --input: 220 15% 22%;
+    --ring: 195 70% 55%;
+
+    --login-bg: 220 20% 10%;
+    --login-card: 220 20% 14%;
+    --login-input: 220 15% 20%;
+    --login-button: 195 70% 45%;
+    --login-button-hover: 195 70% 55%;
+    --login-link: 195 70% 60%;
+    
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Nunito', sans-serif;
+  }
+}
+
+@layer components {
+  .login-card {
+    @apply bg-card rounded-3xl shadow-xl p-8;
+    box-shadow: 0 10px 40px -10px hsl(220 20% 50% / 0.15);
+  }
+
+  .login-input {
+    @apply w-full rounded-xl border-0 px-4 py-3 text-base;
+    background: hsl(var(--login-input));
+  }
+
+  .login-input:focus {
+    @apply outline-none ring-2;
+    --ts-ring-color: hsl(var(--primary));
+  }
+
+  .login-button {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-8 py-3 font-semibold transition-all duration-200;
+    background: hsl(var(--login-button));
+    color: hsl(var(--primary-foreground));
+  }
+
+  .login-button:hover {
+    background: hsl(var(--login-button-hover));
+    transform: translateY(-1px);
+  }
+
+  .login-link {
+    color: hsl(var(--login-link));
+    @apply font-medium hover:underline;
+  }
+
+  /* Feature card styles for homepage */
+  .feature-card {
+    @apply bg-card rounded-2xl p-6 flex flex-col items-center justify-center gap-3 transition-all duration-200 cursor-pointer;
+    box-shadow: 0 4px 20px -4px hsl(220 20% 50% / 0.1);
+  }
+
+  .feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px -4px hsl(220 20% 50% / 0.15);
+  }
+
+  .feature-icon {
+    @apply w-12 h-12 rounded-xl flex items-center justify-center;
+    background: hsl(var(--info));
+    color: hsl(var(--primary));
+  }
+
+  /* Notification bell */
+  .notification-bell {
+    @apply w-12 h-12 rounded-xl flex items-center justify-center;
+    background: hsl(var(--warning));
+    color: hsl(var(--warning-foreground));
+  }
+}
+
+@layer utilities {
+  .font-nunito {
+    font-family: 'Nunito', sans-serif;
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+}
