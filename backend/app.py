@@ -18,7 +18,7 @@ def create_app():
     CORS(app, origins=[Config.FRONTEND_URL, "http://localhost:5173", "http://localhost:3000"])
 
     # Initialise Revision Games tables
-    revision_config.init_db()
+    #revision_config.init_db()
 
     # Register Revision Games blueprint
     app.register_blueprint(revision_games_bp)

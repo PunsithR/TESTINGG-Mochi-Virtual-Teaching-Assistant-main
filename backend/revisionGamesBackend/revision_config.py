@@ -4,9 +4,10 @@ Revision Games Configuration
 Database schema and Gemini AI service for the Revision Games feature.
 """
 
+from google.genai import Client
 import psycopg2
 import psycopg2.extras
-import google.generativeai as genai
+import google as genai
 import json
 from config import Config
 
@@ -76,7 +77,7 @@ def init_db():
 # GEMINI AI SERVICE
 # ──────────────────────────────────────
 
-genai.configure(api_key=Config.GEMINI_API_KEY)
+client=Client(api_key=Config.GEMINI_API_KEY)
 
 
 def get_model():
