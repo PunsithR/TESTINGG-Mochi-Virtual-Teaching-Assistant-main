@@ -7,10 +7,12 @@ Registered as a Flask Blueprint.
 
 from flask import Blueprint, request, jsonify
 import psycopg2.extras
+import json
 from .revision_config import (
     get_connection,
     generate_feedback,
-    generate_questions,
+    # generate_questions, # We are replacing this logic directly in the route for custom control
+    client # Ensure client is imported from revision_config
 )
 
 revision_games_bp = Blueprint("revision_games", __name__, url_prefix="/api")
@@ -122,18 +124,60 @@ def get_feedback():
 
 
 # ──────────────────────────────────────
-# AI QUESTION GENERATION (Gemini)
+# AI QUESTION GENERATION (Gemini) - UPDATED
 # ──────────────────────────────────────
 
-@revision_games_bp.route("/generate-questions", methods=["POST"])
+@revision_games_bp.route("/generate", methods=["POST"]) # Changed to /generate to match frontend
 def ai_generate_questions():
     data = request.json
-    questions = generate_questions(
-        subject=data["subject"],
-        description=data.get("description", ""),
-        num_questions=data.get("num_questions", 5),
-    )
-    return jsonify({"questions": questions})
+    
+    # 1. Capture the new fields from your frontend
+    game_topic = data.get("gameTopic", "General Knowledge")
+    subject = data.get("subject", "General")
+    description = data.get("description", "")
+    
+    print(f"Generating for Topic: {game_topic}, Subject: {subject}")
+
+    # 2. Updated Prompt to return the EXACT JSON structure your React app needs
+    prompt = f"""
+    Create 3 preschool revision questions about "{game_topic}" specifically focusing on "{subject}".
+    Context: {description}
+
+    You must respond with a strict JSON array. Each object in the array must follow this structure:
+    {{
+        "gameTitle": "{game_topic}", 
+        "questionText": "A simple question for a 4-year-old",
+        "options": [
+            {{ "label": "Option 1", "image": null }},
+            {{ "label": "Option 2", "image": null }},
+            {{ "label": "Option 3", "image": null }}
+        ]
+    }}
+    
+    Make the questions fun and educational. 
+    Do not include markdown formatting (like ```json). Just the raw JSON.
+    """
+
+    try:
+        # 3. Call the Gemini Client
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+        
+        # 4. Clean and Parse JSON
+        clean_text = response.text.strip()
+        if clean_text.startswith("```"):
+            clean_text = clean_text.split("\n", 1)[1].rsplit("```", 1)[0]
+            
+        generated_data = json.loads(clean_text)
+        
+        # Return the array directly (frontend expects an array, not {questions: [...]})
+        return jsonify(generated_data)
+
+    except Exception as e:
+        print(f"Gemini Error: {e}")
+        return jsonify({"error": str(e)}), 500
 
 
 # ──────────────────────────────────────

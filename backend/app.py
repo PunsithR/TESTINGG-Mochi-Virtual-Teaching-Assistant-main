@@ -15,7 +15,7 @@ from revisionGamesBackend.routes import revision_games_bp
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
-    CORS(app, origins=[Config.FRONTEND_URL, "http://localhost:5173", "http://localhost:3000"])
+    CORS(app, origins=[Config.FRONTEND_URL, "http://localhost:5173", "http://localhost:3000", "http://localhost:8080"])
 
     # Initialise Revision Games tables
     #revision_config.init_db()
