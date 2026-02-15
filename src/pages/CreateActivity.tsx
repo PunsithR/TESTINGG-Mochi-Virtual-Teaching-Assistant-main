@@ -12,7 +12,6 @@ import {
 
 type TemplateMode = "select" | "ai" | "custom";
 
-// --- YOUR INTERFACES ---
 interface ImageOption {
   image: string | null;
   label: string;
@@ -28,16 +27,13 @@ const CreateActivity = () => {
   const navigate = useNavigate();
   const [mode, setMode] = useState<TemplateMode>("select");
   
-  // Dialog States
   const [showModeDialog, setShowModeDialog] = useState(true);
   const [showAiDialog, setShowAiDialog] = useState(false);
 
-  // AI Template Inputs
   const [gameTopic, setGameTopic] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   
-  // Custom Template State (Multi-question)
   const [questions, setQuestions] = useState<QuestionData[]>([
     {
       gameTitle: "",
@@ -52,8 +48,6 @@ const CreateActivity = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const imageInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
   const currentQuestion = questions[currentQuestionIndex];
-
-  // --- HANDLERS ---
 
   const handleModeSelect = (selectedMode: "ai" | "custom") => {
     if (selectedMode === "ai") {
@@ -72,7 +66,6 @@ const CreateActivity = () => {
     }
 
     try {
-      // 1. Send data to Flask
       const response = await fetch('http://localhost:5000/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -82,15 +75,32 @@ const CreateActivity = () => {
       if (!response.ok) throw new Error("Failed to generate");
 
       const data = await response.json();
-      console.log("AI Generated Data:", data);
-
-      // 2. Update state and switch to custom mode
-      if (Array.isArray(data)) {
-         setQuestions(data);
-      }
       
+      // --- SAVE TO LOCAL STORAGE (Simulating Database) ---
+      const newGame = {
+        id: Date.now().toString(),
+        name: gameTopic,
+        description: description,
+        questionCount: data.length,
+        questions: data,
+        isAiGenerated: true,
+        createdAt: new Date().toISOString()
+      };
+
+      const existingGames = JSON.parse(localStorage.getItem("created_games") || "[]");
+      localStorage.setItem("created_games", JSON.stringify([newGame, ...existingGames]));
+
+      // --- DB INTEGRATION POINT (COMMENTED OUT) ---
+      /* await fetch('http://localhost:5000/api/activities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newGame)
+      }); 
+      */
+
+      // UPDATED: Removed alert and redirected directly
       setShowAiDialog(false); 
-      setMode("custom"); 
+      navigate("/revision-games"); 
 
     } catch (error) {
       console.error("Error:", error);
@@ -98,7 +108,31 @@ const CreateActivity = () => {
     }
   };
 
-  // ... (Existing Custom Handlers) ...
+  const handleSave = () => {
+    const title = currentQuestion.gameTitle || "Custom Game";
+    
+    // --- SAVE TO LOCAL STORAGE (Simulating Database) ---
+    const newCustomGame = {
+      id: Date.now().toString(),
+      name: title,
+      description: "Manually created lesson",
+      questionCount: questions.length,
+      questions: questions,
+      isAiGenerated: false,
+      createdAt: new Date().toISOString()
+    };
+
+    const existingGames = JSON.parse(localStorage.getItem("created_games") || "[]");
+    localStorage.setItem("created_games", JSON.stringify([newCustomGame, ...existingGames]));
+
+    // --- DB INTEGRATION POINT (COMMENTED OUT) ---
+    /* console.log("Teammate Integration: Save this question array to PostgreSQL using psycopg2");
+    */
+
+    // UPDATED: Removed alert and redirected directly
+    navigate("/revision-games"); 
+  };
+
   const updateCurrentQuestion = (updates: Partial<QuestionData>) => {
     setQuestions(prev => {
       const updated = [...prev];
@@ -146,15 +180,8 @@ const CreateActivity = () => {
     if (currentQuestionIndex > 0) setCurrentQuestionIndex(currentQuestionIndex - 1);
   };
 
-  const handleSave = () => {
-    console.log("Saving game data:", questions);
-    alert("Game Saved!");
-    navigate("/revision-games");
-  };
-
   return (
     <div className="min-h-screen bg-background p-6">
-      {/* 1. Header */}
       {mode === "custom" && (
         <>
           <motion.header
@@ -174,10 +201,9 @@ const CreateActivity = () => {
         </>
       )}
 
-      {/* 2. Initial Selection Dialog */}
       <Dialog open={showModeDialog} onOpenChange={setShowModeDialog}>
         <DialogContent className="bg-card border-0 rounded-3xl p-8 max-w-md [&>button]:hidden">
-          <button onClick={() => setShowModeDialog(false)} className="absolute right-4 top-4 opacity-70 hover:opacity-100">
+          <button onClick={() => navigate("/revision-games")} className="absolute right-4 top-4 opacity-70 hover:opacity-100">
             <X className="h-4 w-4" />
           </button>
           <div className="text-center mb-6">
@@ -207,13 +233,10 @@ const CreateActivity = () => {
         </DialogContent>
       </Dialog>
 
-      {/* 3. NEW AI INTERFACE (Fixed Close Button) */}
       <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
-        {/* Added [&>button]:hidden to remove the default X */}
         <DialogContent className="bg-card border-0 rounded-3xl p-8 max-w-xl [&>button]:hidden">
           <div className="flex justify-between items-center mb-1">
             <h2 className="text-2xl font-bold text-foreground">Create New Game</h2>
-            {/* Custom Close Button -> Redirects to /revision-games */}
             <button 
               onClick={() => navigate("/revision-games")} 
               className="opacity-70 hover:opacity-100 transition-opacity"
@@ -274,7 +297,6 @@ const CreateActivity = () => {
         </DialogContent>
       </Dialog>
 
-      {/* 4. Custom Mode Editor */}
       <AnimatePresence mode="wait">
         {mode === "custom" && (
           <motion.div

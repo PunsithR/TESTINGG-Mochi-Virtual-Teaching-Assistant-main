@@ -15,38 +15,38 @@ import {
   GeminiFeedback,
 } from "@/lib/mockData";
 
-
+// --- INTERFACES ---
 interface SavedGame {
   id: string;
-  title: string;
+  name: string; // Changed 'title' to 'name' to match your storage logic
   description: string;
-  coverImage: string | null;
   questions: {
-    question: string;
-    cards: { label: string; image: string | null }[];
+    questionText: string; // Changed to match your CreateActivity state
+    options: { label: string; image: string | null }[];
   }[];
   createdAt: string;
 }
 
-/** Convert a saved game's questions into the Question format used by the game engine */
-const convertSavedGameQuestions = (savedGame: SavedGame): Question[] => {
-  return savedGame.questions.map((q, idx) => {
-    // The correct answer is the first card's label (the "target" item)
-    const correctAnswer = q.cards[0]?.label || "Unknown";
+/** * Convert a saved game's questions into the Question format used by the game engine 
+ * This ensures your custom "car" game works with the Mochi UI
+ */
+const convertSavedGameQuestions = (savedGame: any): Question[] => {
+  return savedGame.questions.map((q: any, idx: number) => {
+    // The correct answer is assumed to be the first option provided
+    const correctAnswer = q.options[0]?.label || "Unknown";
     return {
       id: idx + 1,
       category_id: -1,
-      target_item: correctAnswer,
+      target_item: q.questionText || correctAnswer,
       correct_answer: correctAnswer,
-      options: q.cards.map((card, cardIdx) => ({
-        id: cardIdx + 1,
-        label: card.label,
-        image_url: card.image || `https://placehold.co/300x300/e2e8f0/64748b?text=${encodeURIComponent(card.label)}`,
+      options: q.options.map((opt: any, optIdx: number) => ({
+        id: optIdx + 1,
+        label: opt.label,
+        image_url: opt.image || `https://placehold.co/300x300/e2e8f0/64748b?text=${encodeURIComponent(opt.label)}`,
       })),
     };
   });
 };
-
 
 const GamePage = () => {
   const navigate = useNavigate();
@@ -63,10 +63,33 @@ const GamePage = () => {
   useEffect(() => {
     const loadQuestions = async () => {
       if (!categoryId) return;
-      const data = await fetchQuestions(parseInt(categoryId));
-      setQuestions(data);
-      setIsLoading(false);
+
+      // 1. Check localStorage for user-created games
+      const savedGamesRaw = localStorage.getItem("created_games");
+      const savedGames = savedGamesRaw ? JSON.parse(savedGamesRaw) : [];
+      
+      // Look for a game matching the current ID from the URL
+      const localGame = savedGames.find((g: any) => g.id.toString() === categoryId);
+
+      if (localGame) {
+        // Format the local data for the game engine
+        const convertedQuestions = convertSavedGameQuestions(localGame);
+        setQuestions(convertedQuestions);
+        setIsLoading(false);
+      } else {
+        // 2. Fallback: Fetch from default categories (Fruits, Numbers, etc.)
+        try {
+          // Preset IDs are numbers (1, 2, 3)
+          const data = await fetchQuestions(parseInt(categoryId));
+          setQuestions(data);
+        } catch (error) {
+          console.error("Failed to load mock questions:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      }
     };
+    
     loadQuestions();
   }, [categoryId]);
 
@@ -77,7 +100,7 @@ const GamePage = () => {
     
     setSelectedOption(option);
     
-    // Get AI feedback
+    // Get AI feedback from Gemini API
     const result = await fetchGeminiFeedback(
       option.label,
       currentQuestion.correct_answer,
@@ -94,7 +117,6 @@ const GamePage = () => {
   };
 
   const handleVoiceInput = async (transcript: string) => {
-    // Find matching option based on transcript
     const matchingOption = currentQuestion.options.find(
       opt => opt.label.toLowerCase() === transcript.toLowerCase()
     );
@@ -102,7 +124,6 @@ const GamePage = () => {
     if (matchingOption) {
       handleSelectOption(matchingOption);
     } else {
-      // Handle no match - provide feedback
       const result = await fetchGeminiFeedback(
         transcript,
         currentQuestion.correct_answer,
@@ -120,7 +141,7 @@ const GamePage = () => {
       setShowFeedback(false);
       setFeedback(null);
     } else {
-      // Game complete - navigate to results
+      // Return to gallery with score summary
       navigate("/revision-games", { state: { score, total: questions.length } });
     }
   };
@@ -171,7 +192,6 @@ const GamePage = () => {
 
   return (
     <div className="min-h-screen bg-background p-6 flex flex-col">
-      {/* Header */}
       <GameHeader
         currentQuestion={currentQuestionIndex + 1}
         totalQuestions={questions.length}
@@ -180,9 +200,7 @@ const GamePage = () => {
         canProceed={!!feedback?.isCorrect}
       />
 
-      {/* Main Game Area */}
       <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-8 py-8">
-        {/* Left: Mochi Avatar */}
         <motion.div
           initial={{ opacity: 0, x: -50 }}
           animate={{ opacity: 1, x: 0 }}
@@ -195,7 +213,6 @@ const GamePage = () => {
           />
         </motion.div>
 
-        {/* Right: Answer Options */}
         <motion.div
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
@@ -214,7 +231,6 @@ const GamePage = () => {
             ))}
           </div>
 
-          {/* Voice Recorder */}
           <div className="mt-4">
             <VoiceRecorder
               onRecordingComplete={handleVoiceInput}
@@ -224,7 +240,6 @@ const GamePage = () => {
         </motion.div>
       </div>
 
-      {/* Feedback Overlay */}
       {feedback && (
         <FeedbackOverlay
           isVisible={showFeedback}
