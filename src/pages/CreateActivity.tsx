@@ -48,7 +48,6 @@ const CreateActivity = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
-  // Mock recent activities
   const recentActivities: RecentActivity[] = [
     { id: "1", name: "Fruits", className: "Class A", status: "completed" },
     { id: "2", name: "Numbers", className: "Class A", status: "pending" },
@@ -77,13 +76,36 @@ const CreateActivity = () => {
     setShowModeDialog(false);
   };
 
-  const handleGenerate = () => {
+  // --- CHANGED: AJAX CALL FOR GEMINI API ---
+  const handleGenerate = async () => {
+    if (!subject || !description) {
+      alert("Please fill in the Subject and Description for Mochi!");
+      return;
+    }
+
     console.log("Generating with AI:", { subject, description, uploadedFile });
-    // Mock generation - would call Gemini API
+    
+    // This is where you send the text to Gemini
+    // try {
+    //   const response = await fetch('YOUR_BACKEND_URL/generate', {
+    //     method: 'POST',
+    //     headers: { 'Content-Type': 'application/json' },
+    //     body: JSON.stringify({ subject, description })
+    //   });
+    //   const data = await response.json();
+    //   console.log("Gemini Response:", data);
+    // } catch (e) { console.error(e); }
+
+    alert(`Mochi is creating a ${subject} lesson based on your description!`);
   };
 
+  // --- CHANGED: POINT FOR PSYCHOPG2 INTEGRATION ---
   const handleSave = () => {
-    console.log("Saving activity...");
+    console.log("Saving activity data to PostgreSQL...");
+    // DB INTEGRATION: Your teammate will use psycopg2 here in the backend
+    // to save the 'subject' and 'description' variables.
+    
+    alert("Activity Saved!");
     navigate("/revision-games");
   };
 
@@ -104,7 +126,6 @@ const CreateActivity = () => {
 
   return (
     <div className="min-h-screen bg-background p-6">
-      {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -128,10 +149,8 @@ const CreateActivity = () => {
         </div>
       </motion.header>
 
-      {/* Divider */}
       <div className="h-px bg-primary/20 mb-6" />
 
-      {/* Mode Selection Dialog */}
       <Dialog open={showModeDialog} onOpenChange={setShowModeDialog}>
         <DialogContent className="bg-card border-0 rounded-3xl p-8 max-w-md">
           <button
@@ -147,7 +166,6 @@ const CreateActivity = () => {
           </div>
           
           <div className="flex flex-col gap-4">
-            {/* Custom Template Option */}
             <button
               onClick={() => handleModeSelect("custom")}
               className="flex items-center gap-4 p-4 rounded-2xl bg-amber-50 hover:bg-amber-100 transition-colors text-left border border-amber-100"
@@ -161,7 +179,6 @@ const CreateActivity = () => {
               </div>
             </button>
             
-            {/* AI-Generated Option */}
             <button
               onClick={() => handleModeSelect("ai")}
               className="flex items-center gap-4 p-4 rounded-2xl bg-pink-50 hover:bg-pink-100 transition-colors text-left border border-pink-100"
@@ -179,7 +196,6 @@ const CreateActivity = () => {
       </Dialog>
 
       <AnimatePresence mode="wait">
-        {/* AI Template Mode */}
         {mode === "ai" && (
           <motion.div
             key="ai-mode"
@@ -188,22 +204,21 @@ const CreateActivity = () => {
             exit={{ opacity: 0, y: -20 }}
             className="space-y-6"
           >
-            {/* Main Form Card */}
             <div className="bg-card rounded-3xl p-8 shadow-soft">
-              {/* Subject */}
+              {/* --- CHANGED: SUBJECT INPUT --- */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Subject
                 </label>
-                  <Textarea
-                    placeholder="Enter a subject (e.g., Fruits, Cars)"
-                    value={subject}
-                    onChange={(e) => setSubject(e.target.value)}
-                    className="rounded-xl border-border min-h-[5px]"
-                  />
+                <Input
+                  placeholder="Enter a subject (e.g., Fruits, Cars, Space)"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
+                  className="rounded-xl border-border h-12"
+                />
               </div>
 
-              {/* Description */}
+              {/* --- CHANGED: DESCRIPTION INPUT --- */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Description
@@ -212,11 +227,10 @@ const CreateActivity = () => {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Enter description how the template looks like"
-                  className="rounded-xl border-border min-h-[60px]"
+                  className="rounded-xl border-border min-h-[80px]"
                 />
               </div>
 
-              {/* File Upload */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-foreground mb-2">
                   Previous or Required Template
@@ -226,20 +240,10 @@ const CreateActivity = () => {
                   className="border-2 border-dashed border-border rounded-2xl p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
                 >
                   <Upload className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
-                  <p className="text-muted-foreground">
-                    Click to upload or drag and drop
-                  </p>
-                  <p className="text-sm text-muted-foreground/70">
-                    PDF, PPT, or Images
-                  </p>
-                  {uploadedFile && (
-                    <p className="mt-2 text-primary font-medium">
-                      {uploadedFile.name}
-                    </p>
-                  )}
-                  <Button variant="outline" className="mt-4 rounded-full">
-                    Browse Files
-                  </Button>
+                  <p className="text-muted-foreground">Click to upload or drag and drop</p>
+                  <p className="text-sm text-muted-foreground/70">PDF, PPT, or Images</p>
+                  {uploadedFile && <p className="mt-2 text-primary font-medium">{uploadedFile.name}</p>}
+                  <Button variant="outline" className="mt-4 rounded-full">Browse Files</Button>
                 </div>
                 <input
                   ref={fileInputRef}
@@ -250,65 +254,48 @@ const CreateActivity = () => {
                 />
               </div>
 
-              {/* Generate Button */}
               <div className="flex justify-center mb-6">
                 <Button
                   onClick={handleGenerate}
-                  variant="outline"
-                  className="rounded-full px-8"
+                  variant="default"
+                  className="rounded-full px-12 bg-pink-500 hover:bg-pink-600 text-white h-12 gap-2"
                 >
-                  Generate
+                  <Sparkles className="w-4 h-4" />
+                  Generate with Mochi
                 </Button>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-between">
+              <div className="flex justify-between border-t pt-6">
                 <Button
                   onClick={handleSave}
                   variant="outline"
-                  className="rounded-full gap-2"
+                  className="rounded-full gap-2 px-6"
                 >
                   <Save className="w-4 h-4" />
-                  Save
+                  Save Template
                 </Button>
-                <Button variant="outline" className="rounded-full gap-2">
+                <Button variant="outline" className="rounded-full gap-2 px-6">
                   <Eye className="w-4 h-4" />
                   Preview
                 </Button>
               </div>
             </div>
 
-            {/* Recent Activities */}
             <div className="bg-card rounded-3xl p-6 shadow-soft">
-              <h3 className="text-lg font-semibold text-foreground mb-4">
-                Recent Activities
-              </h3>
+              <h3 className="text-lg font-semibold text-foreground mb-4">Recent Activities</h3>
               <div className="space-y-3">
                 {recentActivities.map((activity) => (
-                  <div
-                    key={activity.id}
-                    className="flex items-center justify-between p-3 bg-background rounded-xl"
-                  >
+                  <div key={activity.id} className="flex items-center justify-between p-3 bg-background rounded-xl">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
                         <FileText className="w-5 h-5 text-primary" />
                       </div>
                       <div>
-                        <p className="font-medium text-foreground">
-                          {activity.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {activity.className}
-                        </p>
+                        <p className="font-medium text-foreground">{activity.name}</p>
+                        <p className="text-sm text-muted-foreground">{activity.className}</p>
                       </div>
                     </div>
-                    <span
-                      className={`px-3 py-1 rounded-full text-xs font-medium ${
-                        activity.status === "completed"
-                          ? "bg-success/20 text-success"
-                          : "bg-muted text-muted-foreground"
-                      }`}
-                    >
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${activity.status === "completed" ? "bg-success/20 text-success" : "bg-muted text-muted-foreground"}`}>
                       {activity.status === "completed" ? "Completed" : "To Be Completed"}
                     </span>
                   </div>
@@ -318,7 +305,6 @@ const CreateActivity = () => {
           </motion.div>
         )}
 
-        {/* Custom Template Mode */}
         {mode === "custom" && (
           <motion.div
             key="custom-mode"
@@ -327,9 +313,7 @@ const CreateActivity = () => {
             exit={{ opacity: 0, y: -20 }}
             className="space-y-6"
           >
-            {/* Template Preview Card */}
             <div className="bg-muted/30 rounded-3xl p-6 shadow-soft overflow-hidden">
-              {/* Top Bar */}
               <div className="flex items-center justify-between mb-4 bg-muted/50 rounded-2xl p-4">
                 <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
                   <span className="text-primary font-bold text-sm">m</span>
@@ -339,111 +323,70 @@ const CreateActivity = () => {
                   <Input
                     value={lessonName}
                     onChange={(e) => setLessonName(e.target.value)}
-                    className="border-0 bg-transparent text-muted-foreground p-0 h-auto text-sm w-32"
+                    className="border-0 bg-transparent text-primary font-bold p-0 h-auto text-sm w-32"
                     placeholder="Lesson name"
                   />
                 </div>
               </div>
 
-              {/* Main Content */}
               <div className="grid grid-cols-2 gap-6">
-                {/* Left - Avatar */}
                 <div className="bg-muted/40 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[280px]">
                   <MochiAvatar size="xl" showBubble={false} />
-                  <div className="mt-4 bg-card rounded-xl px-6 py-3 shadow-soft">
+                  <div className="mt-4 bg-card rounded-xl px-6 py-3 shadow-soft w-full max-w-[200px]">
                     <Input
                       value={answerText}
                       onChange={(e) => setAnswerText(e.target.value)}
-                      placeholder="Text"
-                      className="border-0 bg-transparent text-center text-muted-foreground"
+                      placeholder="Enter Text"
+                      className="border-0 bg-transparent text-center text-foreground font-semibold placeholder:text-muted-foreground/50"
                     />
                   </div>
                 </div>
 
-                {/* Right - Upload Area */}
                 <div className="bg-muted/40 rounded-2xl p-4 flex flex-col items-center justify-center min-h-[280px]">
                   <div
                     onClick={() => imageInputRef.current?.click()}
-                    className="flex-1 w-full bg-card rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-card/80 transition-colors"
+                    className="flex-1 w-full bg-card rounded-xl flex flex-col items-center justify-center cursor-pointer hover:bg-card/80 transition-all border-2 border-dashed border-transparent hover:border-primary/30"
                   >
                     {answerImage ? (
-                      <img
-                        src={answerImage}
-                        alt="Answer"
-                        className="max-h-32 object-contain rounded-lg"
-                      />
+                      <img src={answerImage} alt="Answer" className="max-h-32 object-contain rounded-lg" />
                     ) : (
                       <>
                         <Camera className="w-12 h-12 text-muted-foreground mb-2" />
-                        <p className="text-sm text-muted-foreground">
-                          Click to upload or drag and drop
-                        </p>
-                        <p className="text-xs text-muted-foreground/70">
-                          PDF, PPT, or Images
-                        </p>
+                        <p className="text-sm text-muted-foreground">Click to upload image</p>
                       </>
                     )}
                   </div>
                   <input
                     ref={imageInputRef}
                     type="file"
-                    accept="image/*,.pdf,.ppt,.pptx"
+                    accept="image/*"
                     onChange={handleImageUpload}
                     className="hidden"
                   />
                   <div className="mt-4 text-center">
-                    <p className="text-2xl font-light text-muted-foreground/50 mb-2">
-                      Text
-                    </p>
                     <Button variant="outline" className="rounded-full gap-2">
-                      <Volume2 className="w-4 h-4" />
-                      Listen
+                      <Volume2 className="w-4 h-4" /> Listen
                     </Button>
                   </div>
                 </div>
               </div>
 
-              {/* Control Buttons */}
               <div className="flex justify-between items-center mt-6">
-                <Button
-                  onClick={handleRepeat}
-                  variant="outline"
-                  className="rounded-full gap-2"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Repeat
-                </Button>
-                <Button
-                  onClick={handleNext}
-                  className="rounded-full gap-2 bg-primary hover:bg-primary/90"
-                >
-                  <ArrowRight className="w-4 h-4" />
-                  Next
-                </Button>
+                <Button onClick={handleRepeat} variant="outline" className="rounded-full gap-2"><RotateCcw className="w-4 h-4" /> Repeat</Button>
+                <Button onClick={handleNext} className="rounded-full gap-2 bg-primary"><ArrowRight className="w-4 h-4" /> Next</Button>
               </div>
 
-              {/* Progress Bar */}
               <div className="mt-6 bg-muted/50 rounded-xl p-4">
                 <div className="flex justify-between items-center mb-2">
-                  <span className="text-sm font-medium text-foreground">
-                    Lesson Progress
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {currentStep} of {totalSteps}
-                  </span>
+                  <span className="text-sm font-medium">Lesson Progress</span>
+                  <span className="text-sm">{currentStep} of {totalSteps}</span>
                 </div>
                 <Progress value={progressPercentage} className="h-2" />
               </div>
             </div>
 
-            {/* Save Button */}
             <div className="flex justify-center">
-              <Button
-                onClick={handleSave}
-                className="rounded-full px-12 py-6 text-lg bg-primary hover:bg-primary/90"
-              >
-                Save Template
-              </Button>
+              <Button onClick={handleSave} className="rounded-full px-12 py-6 text-lg bg-primary hover:bg-primary/90">Save Template</Button>
             </div>
           </motion.div>
         )}
