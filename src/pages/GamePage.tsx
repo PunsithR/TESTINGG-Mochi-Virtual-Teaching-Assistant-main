@@ -15,6 +15,39 @@ import {
   GeminiFeedback,
 } from "@/lib/mockData";
 
+
+interface SavedGame {
+  id: string;
+  title: string;
+  description: string;
+  coverImage: string | null;
+  questions: {
+    question: string;
+    cards: { label: string; image: string | null }[];
+  }[];
+  createdAt: string;
+}
+
+/** Convert a saved game's questions into the Question format used by the game engine */
+const convertSavedGameQuestions = (savedGame: SavedGame): Question[] => {
+  return savedGame.questions.map((q, idx) => {
+    // The correct answer is the first card's label (the "target" item)
+    const correctAnswer = q.cards[0]?.label || "Unknown";
+    return {
+      id: idx + 1,
+      category_id: -1,
+      target_item: correctAnswer,
+      correct_answer: correctAnswer,
+      options: q.cards.map((card, cardIdx) => ({
+        id: cardIdx + 1,
+        label: card.label,
+        image_url: card.image || `https://placehold.co/300x300/e2e8f0/64748b?text=${encodeURIComponent(card.label)}`,
+      })),
+    };
+  });
+};
+
+
 const GamePage = () => {
   const navigate = useNavigate();
   const { categoryId } = useParams<{ categoryId: string }>();
