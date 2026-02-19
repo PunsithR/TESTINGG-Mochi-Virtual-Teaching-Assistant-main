@@ -1,7 +1,20 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Upload, Save, Eye, FileText, FileEdit, Sparkles, X, Plus, ChevronRight } from "lucide-react";
+// UPDATED IMPORTS: Added Loader2, kept Eye and FileText to match your original file
+import { 
+  ArrowLeft, 
+  Upload, 
+  Save, 
+  Eye, 
+  FileText, 
+  FileEdit, 
+  Sparkles, 
+  X, 
+  Plus, 
+  ChevronRight, 
+  Loader2 
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,13 +40,19 @@ const CreateActivity = () => {
   const navigate = useNavigate();
   const [mode, setMode] = useState<TemplateMode>("select");
   
+  // Dialog States
   const [showModeDialog, setShowModeDialog] = useState(true);
   const [showAiDialog, setShowAiDialog] = useState(false);
+  
+  // Loading State
+  const [isGenerating, setIsGenerating] = useState(false);
 
+  // AI Inputs
   const [gameTopic, setGameTopic] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   
+  // Editor State
   const [questions, setQuestions] = useState<QuestionData[]>([
     {
       gameTitle: "",
@@ -48,6 +67,8 @@ const CreateActivity = () => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const imageInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
   const currentQuestion = questions[currentQuestionIndex];
+
+  // --- HANDLERS ---
 
   const handleModeSelect = (selectedMode: "ai" | "custom") => {
     if (selectedMode === "ai") {
@@ -65,6 +86,8 @@ const CreateActivity = () => {
       return;
     }
 
+    setIsGenerating(true);
+
     try {
       const response = await fetch('http://localhost:5000/api/generate', {
         method: 'POST',
@@ -76,46 +99,43 @@ const CreateActivity = () => {
 
       const data = await response.json();
       
-      // --- SAVE TO LOCAL STORAGE (Simulating Database) ---
-      const newGame = {
-        id: Date.now().toString(),
-        name: gameTopic,
-        description: description,
-        questionCount: data.length,
-        questions: data,
-        isAiGenerated: true,
-        createdAt: new Date().toISOString()
-      };
+      // 1. Map API data to the Editor's QuestionData format
+      // We assume the API returns objects with { question: string, options: string[] }
+      const populatedQuestions: QuestionData[] = data.map((aiQ: any) => ({
+        gameTitle: gameTopic,
+        questionText: aiQ.question || aiQ.questionText || "AI Question",
+        options: aiQ.options.map((optLabel: string) => ({
+          label: optLabel,
+          // UPDATED: Auto-generate a placeholder image with the text inside
+          image: `https://placehold.co/600x400/orange/white?text=${encodeURIComponent(optLabel)}`
+        }))
+      }));
 
-      const existingGames = JSON.parse(localStorage.getItem("created_games") || "[]");
-      localStorage.setItem("created_games", JSON.stringify([newGame, ...existingGames]));
+      // 2. Load the data into the editor state
+      setQuestions(populatedQuestions);
+      setCurrentQuestionIndex(0); // Reset to first question
 
-      // --- DB INTEGRATION POINT (COMMENTED OUT) ---
-      /* await fetch('http://localhost:5000/api/activities', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newGame)
-      }); 
-      */
-
-      // UPDATED: Removed alert and redirected directly
+      // 3. Switch to Custom Mode to show the filled editor
+      setIsGenerating(false);
       setShowAiDialog(false); 
-      navigate("/revision-games"); 
+      setMode("custom"); 
 
     } catch (error) {
       console.error("Error:", error);
+      setIsGenerating(false);
       alert("Mochi is currently offline. Please try again later.");
     }
   };
 
   const handleSave = () => {
-    const title = currentQuestion.gameTitle || "Custom Game";
+    // This title logic ensures we use the first question's title if available
+    const title = questions[0].gameTitle || gameTopic || "Custom Game";
     
-    // --- SAVE TO LOCAL STORAGE (Simulating Database) ---
+    // --- SAVE TO LOCAL STORAGE ---
     const newCustomGame = {
       id: Date.now().toString(),
       name: title,
-      description: "Manually created lesson",
+      description: description || "Manually created lesson",
       questionCount: questions.length,
       questions: questions,
       isAiGenerated: false,
@@ -125,11 +145,7 @@ const CreateActivity = () => {
     const existingGames = JSON.parse(localStorage.getItem("created_games") || "[]");
     localStorage.setItem("created_games", JSON.stringify([newCustomGame, ...existingGames]));
 
-    // --- DB INTEGRATION POINT (COMMENTED OUT) ---
-    /* console.log("Teammate Integration: Save this question array to PostgreSQL using psycopg2");
-    */
-
-    // UPDATED: Removed alert and redirected directly
+    // Direct redirect to Gallery (No Alert)
     navigate("/revision-games"); 
   };
 
@@ -176,12 +192,9 @@ const CreateActivity = () => {
     if (currentQuestionIndex < questions.length - 1) setCurrentQuestionIndex(currentQuestionIndex + 1);
   };
 
-  const handlePrevQuestion = () => {
-    if (currentQuestionIndex > 0) setCurrentQuestionIndex(currentQuestionIndex - 1);
-  };
-
   return (
     <div className="min-h-screen bg-background p-6">
+      {/* 1. Custom Editor Header */}
       {mode === "custom" && (
         <>
           <motion.header
@@ -194,13 +207,14 @@ const CreateActivity = () => {
             </Button>
             <div>
               <h1 className="text-2xl font-bold text-foreground">Customize Template</h1>
-              <p className="text-muted-foreground text-sm">Create and manage your lessons using Mochi AI</p>
+              <p className="text-muted-foreground text-sm">Review and edit your Mochi lesson</p>
             </div>
           </motion.header>
           <div className="h-px bg-primary/20 mb-6" />
         </>
       )}
 
+      {/* 2. Initial Selection Dialog */}
       <Dialog open={showModeDialog} onOpenChange={setShowModeDialog}>
         <DialogContent className="bg-card border-0 rounded-3xl p-8 max-w-md [&>button]:hidden">
           <button onClick={() => navigate("/revision-games")} className="absolute right-4 top-4 opacity-70 hover:opacity-100">
@@ -217,7 +231,7 @@ const CreateActivity = () => {
               </div>
               <div>
                 <h3 className="font-semibold text-foreground text-lg">Custom Template</h3>
-                <p className="text-muted-foreground text-sm">Create your own questions and upload images</p>
+                <p className="text-muted-foreground text-sm">Create your own questions from scratch</p>
               </div>
             </button>
             <button onClick={() => handleModeSelect("ai")} className="flex items-center gap-4 p-4 rounded-2xl bg-pink-50 hover:bg-pink-100 border border-pink-100 text-left">
@@ -233,6 +247,7 @@ const CreateActivity = () => {
         </DialogContent>
       </Dialog>
 
+      {/* 3. AI Input Dialog */}
       <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
         <DialogContent className="bg-card border-0 rounded-3xl p-8 max-w-xl [&>button]:hidden">
           <div className="flex justify-between items-center mb-1">
@@ -287,16 +302,27 @@ const CreateActivity = () => {
               </Button>
               <Button 
                 onClick={handleGenerate}
+                disabled={isGenerating}
                 className="flex-1 h-11 rounded-full bg-cyan-500 hover:bg-cyan-600 text-white gap-2"
               >
-                <Sparkles className="w-4 h-4" />
-                Generate Game
+                {isGenerating ? (
+                   <>
+                     <Loader2 className="w-4 h-4 animate-spin" />
+                     Generating...
+                   </>
+                ) : (
+                   <>
+                     <Sparkles className="w-4 h-4" />
+                     Generate & Edit
+                   </>
+                )}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* 4. Main Editor Interface */}
       <AnimatePresence mode="wait">
         {mode === "custom" && (
           <motion.div
@@ -308,18 +334,24 @@ const CreateActivity = () => {
             <div className="bg-card rounded-3xl shadow-soft overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-border">
                 <Button variant="ghost" onClick={() => navigate("/revision-games")} className="text-muted-foreground hover:text-destructive font-semibold">
-                  <X className="w-5 h-5 mr-2" /> End
+                  <X className="w-5 h-5 mr-2" /> Cancel
                 </Button>
+                
                 <div className="flex flex-col items-center">
                   <span className="text-sm font-semibold text-foreground">
                     Question {currentQuestionIndex + 1} of {questions.length}
                   </span>
                   <div className="flex gap-2 mt-1">
                     {questions.map((_, i) => (
-                      <button key={i} onClick={() => setCurrentQuestionIndex(i)} className={`w-3 h-3 rounded-full ${i === currentQuestionIndex ? "bg-primary" : "bg-muted"}`} />
+                      <button 
+                        key={i} 
+                        onClick={() => setCurrentQuestionIndex(i)} 
+                        className={`w-3 h-3 rounded-full transition-colors ${i === currentQuestionIndex ? "bg-primary" : "bg-muted"}`} 
+                      />
                     ))}
                   </div>
                 </div>
+
                 <Button onClick={handleNextQuestion} disabled={currentQuestionIndex >= questions.length - 1} className="bg-primary hover:bg-primary/90 font-semibold rounded-full px-6">
                   Next <ChevronRight className="w-5 h-5 ml-1" />
                 </Button>
@@ -328,16 +360,30 @@ const CreateActivity = () => {
               <div className="p-8 max-w-3xl mx-auto">
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-muted-foreground mb-2">Game Title</label>
-                  <Input value={currentQuestion.gameTitle} onChange={(e) => updateCurrentQuestion({ gameTitle: e.target.value })} className="rounded-xl h-12" placeholder="e.g. Fruit Quiz" />
+                  <Input 
+                    value={currentQuestion.gameTitle} 
+                    onChange={(e) => updateCurrentQuestion({ gameTitle: e.target.value })} 
+                    className="rounded-xl h-12" 
+                    placeholder="e.g. Fruit Quiz" 
+                  />
                 </div>
                 <div className="mb-8">
-                  <label className="block text-sm font-medium text-muted-foreground mb-2">Enter your question</label>
-                  <Textarea value={currentQuestion.questionText} onChange={(e) => updateCurrentQuestion({ questionText: e.target.value })} className="rounded-xl min-h-[60px]" placeholder="e.g. Can you show me the Apple?" />
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">Question Text</label>
+                  <Textarea 
+                    value={currentQuestion.questionText} 
+                    onChange={(e) => updateCurrentQuestion({ questionText: e.target.value })} 
+                    className="rounded-xl min-h-[60px]" 
+                    placeholder="e.g. Can you show me the Apple?" 
+                  />
                 </div>
+
                 <div className="grid grid-cols-3 gap-6 mb-8">
                   {currentQuestion.options.map((option, index) => (
                     <div key={index} className="flex flex-col items-center">
-                      <div onClick={() => imageInputRefs.current[index]?.click()} className="w-full aspect-[4/5] border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 overflow-hidden relative">
+                      <div 
+                        onClick={() => imageInputRefs.current[index]?.click()} 
+                        className="w-full aspect-[4/5] border-2 border-dashed border-border rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 overflow-hidden relative bg-muted/10 transition-colors"
+                      >
                         {option.image ? (
                           <img src={option.image} alt={option.label} className="w-full h-full object-cover" />
                         ) : (
@@ -347,14 +393,30 @@ const CreateActivity = () => {
                           </>
                         )}
                       </div>
-                      <input ref={(el) => { imageInputRefs.current[index] = el; }} type="file" accept="image/*" onChange={(e) => handleImageUpload(index, e)} className="hidden" />
-                      <Input value={option.label} onChange={(e) => handleLabelChange(index, e.target.value)} placeholder="Label" className="mt-3 text-center border-0 bg-transparent font-semibold" />
+                      <input 
+                        ref={(el) => { imageInputRefs.current[index] = el; }} 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => handleImageUpload(index, e)} 
+                        className="hidden" 
+                      />
+                      <Input 
+                        value={option.label} 
+                        onChange={(e) => handleLabelChange(index, e.target.value)} 
+                        placeholder={`Option ${index + 1}`} 
+                        className="mt-3 text-center border-0 bg-transparent font-semibold focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50" 
+                      />
                     </div>
                   ))}
                 </div>
+
                 <div className="flex justify-center gap-4">
-                  <Button onClick={handleAddQuestion} className="rounded-full px-8 py-3 bg-primary gap-2"><Plus className="w-5 h-5" /> Add Question</Button>
-                  <Button onClick={handleSave} className="rounded-full px-8 py-3 bg-success gap-2 text-white"><Save className="w-5 h-5" /> Save Game</Button>
+                  <Button onClick={handleAddQuestion} className="rounded-full px-8 py-3 bg-secondary text-secondary-foreground hover:bg-secondary/80 gap-2">
+                    <Plus className="w-5 h-5" /> Add Question
+                  </Button>
+                  <Button onClick={handleSave} className="rounded-full px-8 py-3 bg-green-500 hover:bg-green-600 text-white gap-2 shadow-lg hover:shadow-xl transition-all">
+                    <Save className="w-5 h-5" /> Save Game
+                  </Button>
                 </div>
               </div>
             </div>

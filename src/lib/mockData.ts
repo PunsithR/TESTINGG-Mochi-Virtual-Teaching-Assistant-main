@@ -52,7 +52,7 @@ export const mockCategories: Category[] = [
     id: 2,
     name: "Numbers",
     description: "Count and learn numbers",
-    icon_url: "https://images.unsplash.com/photo-1509228468518-180dd4864904?w=400&h=300&fit=crop",
+    icon_url: "https://placehold.co/600x400/orange/white?text=1+2+3",
     color: "bg-blue-100",
   },
   {
@@ -66,7 +66,7 @@ export const mockCategories: Category[] = [
     id: 4,
     name: "Animals",
     description: "Meet friendly animals",
-    icon_url: "https://images.unsplash.com/photo-1474511320723-9a56873571b7?w=400&h=300&fit=crop",
+    icon_url: "https://images.unsplash.com/photo-1546182990-dffeafbe841d?q=80&w=1000&auto=format&fit=crop",
     color: "bg-green-100",
   },
   {
@@ -80,7 +80,7 @@ export const mockCategories: Category[] = [
     id: 6,
     name: "Vegetables",
     description: "Healthy veggies fun",
-    icon_url: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=400&h=300&fit=crop",
+    icon_url: "https://images.unsplash.com/photo-1566385101042-1a0aa0c1268c?q=80&w=1000&auto=format&fit=crop",
     color: "bg-orange-100",
   },
 ];

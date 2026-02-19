@@ -1,58 +1,61 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Plus, ArrowLeft, Trash2 } from "lucide-react"; // Added Trash2 for delete
+import { Plus, ArrowLeft, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CategoryCard from "@/components/game/CategoryCard";
 import { Category, fetchCategories } from "@/lib/mockData";
 
 const RevisionGames = () => {
   const navigate = useNavigate();
-  const [categories, setCategories] = useState<Category[]>([]);
+  
+  // UPDATED: Split state into two separate arrays
+  const [presetGames, setPresetGames] = useState<Category[]>([]);
+  const [createdGames, setCreatedGames] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const loadCategories = async () => {
-      // 1. Fetch the default preset categories
+    const loadData = async () => {
+      // 1. Load Defaults (Mochi's Library)
       const defaultData = await fetchCategories();
-      
-      // 2. Fetch locally saved games from localStorage
+      setPresetGames(defaultData);
+
+      // 2. Load User-Created Games from LocalStorage
       const savedGamesRaw = localStorage.getItem("created_games");
       const savedGames = savedGamesRaw ? JSON.parse(savedGamesRaw) : [];
 
-      // 3. Convert saved games into the Category format so they fit the UI
+      // 3. Map them to the Category format
       const mappedSavedGames = savedGames.map((game: any) => ({
         id: game.id,
         name: game.name,
         description: game.description || `${game.questions?.length || 0} question(s)`,
-        // Use a placeholder if no cover image exists
-        icon_url: game.questions?.[0]?.options?.[0]?.image || "https://placehold.co/600x400?text=My+Game",
+        icon_url: game.questions?.[0]?.options?.[0]?.image || "https://placehold.co/600x400?text=New+Game",
         color: "bg-white",
-        isCustom: true // Track if it's a user-created game
+        isCustom: true,
+        questionCount: game.questions?.length // ensure this is passed for the card
       }));
 
-      // Combine them: Newest created games appear at the top
-      setCategories([...mappedSavedGames, ...defaultData]);
+      setCreatedGames(mappedSavedGames);
       setIsLoading(false);
     };
     
-    loadCategories();
+    loadData();
   }, []);
 
   const handlePlayCategory = (category: Category) => {
     navigate(`/game/${category.id}`);
   };
 
-  // Optional: Function to delete a created game
   const handleDeleteGame = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent opening the game when clicking delete
+    e.stopPropagation();
     const savedGamesRaw = localStorage.getItem("created_games");
     if (savedGamesRaw) {
       const savedGames = JSON.parse(savedGamesRaw);
-      const filtered = savedGames.filter((g: any) => g.id !== id);
+      const filtered = savedGames.filter((g: any) => g.id.toString() !== id.toString());
       localStorage.setItem("created_games", JSON.stringify(filtered));
-      // Refresh the list
-      setCategories(categories.filter(c => c.id.toString() !== id));
+      
+      // UPDATED: Only update the createdGames state
+      setCreatedGames(prev => prev.filter(c => c.id.toString() !== id.toString()));
     }
   };
 
@@ -89,54 +92,68 @@ const RevisionGames = () => {
         </Button>
       </motion.header>
 
-      {/* Created Games Section Label */}
-      <h2 className="text-xl font-bold mb-4 text-foreground/80">Created Games</h2>
-
-      {/* Category Grid */}
-      {isLoading ? (
-        <div className="grid grid-cols-2 gap-6">
-          {[...Array(4)].map((_, i) => (
-            <div
-              key={i}
-              className="bg-card/50 rounded-3xl h-64 animate-pulse"
-            />
-          ))}
-        </div>
-      ) : (
-        <motion.div
-          initial={{ opacity: 0 }}
+      {/* SECTION 1: Created Games (Only shows if you have made one) */}
+      {createdGames.length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0 }} 
           animate={{ opacity: 1 }}
-          className="grid grid-cols-2 gap-6"
+          className="mb-10"
         >
-          {categories.map((category, index) => (
-            <div key={category.id} className="relative group">
-              <CategoryCard
-                category={category}
-                onPlay={handlePlayCategory}
-                index={index}
-              />
-              
-              {/* Show red delete button only for custom games */}
-              {(category as any).isCustom && (
+          <h2 className="text-xl font-bold mb-4 text-foreground/80 flex items-center gap-2">
+            Created Games
+            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+              {createdGames.length}
+            </span>
+          </h2>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {createdGames.map((category, index) => (
+              <div key={category.id} className="relative group">
+                <CategoryCard
+                  category={category}
+                  onPlay={handlePlayCategory}
+                  index={index}
+                />
                 <Button
                   variant="destructive"
                   size="icon"
-                  className="absolute top-4 right-4 rounded-full w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="absolute top-4 right-4 rounded-full w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                   onClick={(e) => handleDeleteGame(category.id.toString(), e)}
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
-              )}
-            </div>
-          ))}
+              </div>
+            ))}
+          </div>
         </motion.div>
       )}
 
-      {/* Database Integration Comment for Teammate */}
-      {/* NOTE FOR TEAMMATE: When the PostgreSQL tables are ready:
-        1. Update loadCategories to fetch from GET /api/activities/recent.
-        2. Replace the localStorage filter logic in handleDeleteGame with DELETE /api/activities/:id.
-      */}
+      {/* SECTION 2: Preset Games (Mochi's Library) */}
+      <div>
+        <h2 className="text-xl font-bold mb-4 text-foreground/80">Preset Games</h2>
+        
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <div
+                key={i}
+                className="bg-card/50 rounded-3xl h-64 animate-pulse"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {presetGames.map((category, index) => (
+              <CategoryCard
+                key={category.id}
+                category={category}
+                onPlay={handlePlayCategory}
+                index={index}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
