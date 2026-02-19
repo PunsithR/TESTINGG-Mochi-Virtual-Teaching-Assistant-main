@@ -40,14 +40,17 @@ const CreateActivity = () => {
   const navigate = useNavigate();
   const [mode, setMode] = useState<TemplateMode>("select");
   
+  // Dialog States
   const [showModeDialog, setShowModeDialog] = useState(true);
   const [showAiDialog, setShowAiDialog] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // AI Input States
   const [gameTopic, setGameTopic] = useState("");
   const [subject, setSubject] = useState("");
   const [description, setDescription] = useState("");
   
+  // Game Data States
   const [questions, setQuestions] = useState<QuestionData[]>([
     {
       gameTitle: "",
@@ -64,19 +67,10 @@ const CreateActivity = () => {
   const imageInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
   const currentQuestion = questions[currentQuestionIndex];
 
-  const handleModeSelect = (selectedMode: "ai" | "custom") => {
-    if (selectedMode === "ai") {
-      setShowModeDialog(false);
-      setShowAiDialog(true);
-    } else {
-      setMode("custom");
-      setShowModeDialog(false);
-    }
-  };
-
+  // 1. Handle AI Generation Trigger
   const handleGenerate = async () => {
     if (!gameTopic || !subject || !description) {
-      alert("Please fill in the Theme, Learning Goal, and Description!");
+      alert("Please fill in the Theme, Learning Goal, and Mochi's Instructions!");
       return;
     }
 
@@ -89,20 +83,18 @@ const CreateActivity = () => {
         body: JSON.stringify({ gameTopic, subject, description })
       });
 
-      if (!response.ok) throw new Error("Failed to generate");
+      if (!response.ok) throw new Error("Failed to generate content");
 
       const data = await response.json();
       
+      // Map Unsplash URLs from Python backend to the Frontend state
       const populatedQuestions: QuestionData[] = data.map((aiQ: any) => ({
         gameTitle: aiQ.gameTitle || gameTopic,
-        questionText: aiQ.question || aiQ.questionText || "AI Question",
-        options: aiQ.options.map((opt: any) => {
-          const optionText = typeof opt === 'string' ? opt : opt.label;
-          return {
-            label: optionText,
-            image: `https://placehold.co/600x400/orange/white?text=${encodeURIComponent(optionText)}`
-          };
-        }),
+        questionText: aiQ.questionText || "Look at the picture!",
+        options: aiQ.options.map((opt: any) => ({
+          label: opt.label,
+          image: opt.image || null // Real Unsplash URL from backend
+        })),
         correctOptionIndex: 0 
       }));
 
@@ -113,41 +105,33 @@ const CreateActivity = () => {
       setMode("custom"); 
 
     } catch (error) {
-      console.error("Error:", error);
+      console.error("AI Generation Error:", error);
       setIsGenerating(false);
-      alert("Mochi is currently offline. Please try again later.");
+      alert("Mochi had trouble finding those photos. Please check your backend terminal!");
     }
   };
 
+  // 2. Handle Final Save to LocalStorage
   const handleSave = () => {
     const title = questions[0].gameTitle || gameTopic || "Custom Game";
     
-    const formattedQuestions = questions.map((q, index) => {
-      const correctLabel = q.options[q.correctOptionIndex]?.label || "";
-      const correctId = q.correctOptionIndex + 1;
-      
-      return {
-        id: index + 1,
-        questionText: q.questionText, 
-        target_item: correctLabel,
-        correct_answer: correctLabel,
-        correct_answer_id: correctId,
-        correctOptionIndex: q.correctOptionIndex,
-        options: q.options.map((opt, oIdx) => ({
-          id: oIdx + 1,
-          label: opt.label,
-          image_url: opt.image 
-        }))
-      };
-    });
+    const formattedQuestions = questions.map((q, index) => ({
+      id: index + 1,
+      questionText: q.questionText, 
+      correctOptionIndex: q.correctOptionIndex,
+      options: q.options.map((opt, oIdx) => ({
+        id: oIdx + 1,
+        label: opt.label,
+        image_url: opt.image 
+      }))
+    }));
 
     const newCustomGame = {
       id: Date.now().toString(),
       name: title,
-      description: description || "Manually created lesson",
+      description: description || "Interactive Revision Game",
       questionCount: formattedQuestions.length,
       questions: formattedQuestions,
-      isAiGenerated: false,
       createdAt: new Date().toISOString()
     };
 
@@ -155,6 +139,17 @@ const CreateActivity = () => {
     localStorage.setItem("created_games", JSON.stringify([newCustomGame, ...existingGames]));
 
     navigate("/revision-games"); 
+  };
+
+  // Helper Functions
+  const handleModeSelect = (selectedMode: "ai" | "custom") => {
+    if (selectedMode === "ai") {
+      setShowModeDialog(false);
+      setShowAiDialog(true);
+    } else {
+      setMode("custom");
+      setShowModeDialog(false);
+    }
   };
 
   const updateCurrentQuestion = (updates: Partial<QuestionData>) => {
@@ -178,59 +173,30 @@ const CreateActivity = () => {
     }
   };
 
-  const handleLabelChange = (optionIndex: number, label: string) => {
-    const newOptions = [...currentQuestion.options];
-    newOptions[optionIndex] = { ...newOptions[optionIndex], label };
-    updateCurrentQuestion({ options: newOptions });
-  };
-
-  const handleAddQuestion = () => {
-    setQuestions(prev => [
-      ...prev,
-      {
-        gameTitle: currentQuestion.gameTitle,
-        questionText: "",
-        options: [{ image: null, label: "" }, { image: null, label: "" }, { image: null, label: "" }],
-        correctOptionIndex: 0,
-      },
-    ]);
-    setCurrentQuestionIndex(questions.length);
-  };
-
-  const handleNextQuestion = () => {
-    if (currentQuestionIndex < questions.length - 1) setCurrentQuestionIndex(currentQuestionIndex + 1);
-  };
-
-  const handleSetCorrect = (index: number) => {
-    updateCurrentQuestion({ correctOptionIndex: index });
-  };
-
   return (
     <div className="min-h-screen bg-background p-6">
+      {/* HEADER (Only visible after mode selection) */}
       {mode === "custom" && (
         <>
-          <motion.header
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex items-center gap-4 mb-6"
-          >
+          <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4 mb-6">
             <Button variant="ghost" size="icon" onClick={() => navigate("/revision-games")} className="rounded-full">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Customize Template</h1>
-              <p className="text-muted-foreground text-sm">Review and edit your Mochi lesson</p>
+              <h1 className="text-2xl font-bold text-foreground">Customize Lesson</h1>
+              <p className="text-muted-foreground text-sm">Review Mochi's picks and edit as you like!</p>
             </div>
           </motion.header>
           <div className="h-px bg-primary/20 mb-6" />
         </>
       )}
 
+      {/* MODE SELECTION DIALOG */}
       <Dialog open={showModeDialog} onOpenChange={setShowModeDialog}>
          <DialogContent className="bg-card border-0 rounded-3xl p-8 max-w-md [&>button]:hidden">
            <div className="text-center mb-6">
             <h2 className="text-2xl font-bold text-foreground">Create New Game</h2>
-            <p className="text-muted-foreground mt-1">Choose how you want to create your revision game</p>
+            <p className="text-muted-foreground mt-1">Choose how you want to build your lesson</p>
           </div>
            <div className="flex flex-col gap-4">
             <button onClick={() => handleModeSelect("custom")} className="flex items-center gap-4 p-4 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-100 text-left">
@@ -239,7 +205,7 @@ const CreateActivity = () => {
               </div>
               <div>
                 <h3 className="font-semibold text-foreground text-lg">Custom Template</h3>
-                <p className="text-muted-foreground text-sm">Create your own questions from scratch</p>
+                <p className="text-muted-foreground text-sm">Create everything from scratch</p>
               </div>
             </button>
             <button onClick={() => handleModeSelect("ai")} className="flex items-center gap-4 p-4 rounded-2xl bg-pink-50 hover:bg-pink-100 border border-pink-100 text-left">
@@ -247,26 +213,24 @@ const CreateActivity = () => {
                 <Sparkles className="w-7 h-7 text-pink-500" />
               </div>
               <div>
-                <h3 className="font-semibold text-foreground text-lg">AI-Generated</h3>
-                <p className="text-muted-foreground text-sm">Let Mochi create questions automatically</p>
+                <h3 className="font-semibold text-foreground text-lg">Mochi AI</h3>
+                <p className="text-muted-foreground text-sm">Let Mochi find questions and photos for you</p>
               </div>
             </button>
           </div>
          </DialogContent>
       </Dialog>
       
+      {/* MOCHI AI INPUT DIALOG */}
       <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
         <DialogContent className="bg-card border-0 rounded-3xl p-8 max-w-xl [&>button]:hidden">
           <div className="flex justify-between items-center mb-1">
             <h2 className="text-2xl font-bold text-foreground">Create with Mochi AI</h2>
-            <button 
-              onClick={() => navigate("/revision-games")} 
-              className="opacity-70 hover:opacity-100 transition-opacity"
-            >
+            <button onClick={() => { setShowAiDialog(false); setShowModeDialog(true); }} className="opacity-70 hover:opacity-100">
               <X className="h-5 w-5" />
             </button>
           </div>
-          <p className="text-muted-foreground mb-6">Mochi will help you build a fun lesson for your students!</p>
+          <p className="text-muted-foreground mb-6">Mochi will find the perfect photos for your students!</p>
 
           <div className="space-y-5">
             <div>
@@ -284,7 +248,7 @@ const CreateActivity = () => {
                 value={subject} 
                 onChange={(e) => setSubject(e.target.value)} 
                 className="h-12 rounded-xl" 
-                placeholder="e.g. Counting 1 to 5, Colors, Letter Sounds"
+                placeholder="e.g. Counting 1 to 5, Primary Colors, Letter Sounds"
               />
             </div>
             <div>
@@ -293,75 +257,59 @@ const CreateActivity = () => {
                 value={description} 
                 onChange={(e) => setDescription(e.target.value)} 
                 className="min-h-[100px] rounded-xl resize-none" 
-                placeholder="e.g. Focus on identifying red fish and counting 3 bubbles. Use very simple words."
+                placeholder="e.g. Use very simple words. Make it whimsical and fun!"
               />
             </div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => { setShowAiDialog(false); setShowModeDialog(true); }} className="flex-1 h-11 rounded-full border-gray-200">Back</Button>
               <Button onClick={handleGenerate} disabled={isGenerating} className="flex-1 h-11 rounded-full bg-cyan-500 hover:bg-cyan-600 text-white gap-2">
-                {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Mochi is thinking...</> : <><Sparkles className="w-4 h-4" /> Generate & Edit</>}
+                {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Mochi is searching...</> : <><Sparkles className="w-4 h-4" /> Generate & Edit</>}
               </Button>
             </div>
           </div>
         </DialogContent>
       </Dialog>
 
+      {/* EDITOR UI (Visible after AI or Custom selection) */}
       <AnimatePresence mode="wait">
         {mode === "custom" && (
-          <motion.div
-            key="custom-mode"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-          >
+          <motion.div key="custom-mode" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}>
             <div className="bg-card rounded-3xl shadow-soft overflow-hidden">
+              {/* Question Navigation Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-border">
                 <Button variant="ghost" onClick={() => navigate("/revision-games")} className="text-muted-foreground hover:text-destructive font-semibold">
                   <X className="w-5 h-5 mr-2" /> Cancel
                 </Button>
                 
                 <div className="flex flex-col items-center">
-                  <span className="text-sm font-semibold text-foreground">
-                    Question {currentQuestionIndex + 1} of {questions.length}
-                  </span>
+                  <span className="text-sm font-semibold text-foreground">Question {currentQuestionIndex + 1} of {questions.length}</span>
                   <div className="flex gap-2 mt-1">
                     {questions.map((_, i) => (
-                      <button 
-                        key={i} 
-                        onClick={() => setCurrentQuestionIndex(i)} 
-                        className={`w-3 h-3 rounded-full transition-colors ${i === currentQuestionIndex ? "bg-primary" : "bg-muted"}`} 
-                      />
+                      <button key={i} onClick={() => setCurrentQuestionIndex(i)} className={`w-3 h-3 rounded-full ${i === currentQuestionIndex ? "bg-primary" : "bg-muted"}`} />
                     ))}
                   </div>
                 </div>
 
-                <Button onClick={handleNextQuestion} disabled={currentQuestionIndex >= questions.length - 1} className="bg-primary hover:bg-primary/90 font-semibold rounded-full px-6">
+                <Button onClick={() => currentQuestionIndex < questions.length - 1 && setCurrentQuestionIndex(currentQuestionIndex + 1)} disabled={currentQuestionIndex >= questions.length - 1} className="bg-primary hover:bg-primary/90 font-semibold rounded-full px-6">
                   Next <ChevronRight className="w-5 h-5 ml-1" />
                 </Button>
               </div>
 
+              {/* Editable Fields */}
               <div className="p-8 max-w-3xl mx-auto">
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-muted-foreground mb-2">Game Title</label>
-                  <Input 
-                    value={currentQuestion.gameTitle} 
-                    onChange={(e) => updateCurrentQuestion({ gameTitle: e.target.value })} 
-                    className="rounded-xl h-12" 
-                  />
+                  <Input value={currentQuestion.gameTitle} onChange={(e) => updateCurrentQuestion({ gameTitle: e.target.value })} className="rounded-xl h-12" />
                 </div>
                 <div className="mb-8">
                   <label className="block text-sm font-medium text-muted-foreground mb-2">Question Text</label>
-                  <Textarea 
-                    value={currentQuestion.questionText} 
-                    onChange={(e) => updateCurrentQuestion({ questionText: e.target.value })} 
-                    className="rounded-xl min-h-[60px]" 
-                  />
+                  <Textarea value={currentQuestion.questionText} onChange={(e) => updateCurrentQuestion({ questionText: e.target.value })} className="rounded-xl min-h-[60px]" />
                 </div>
 
+                {/* Question Cards (Options) */}
                 <div className="grid grid-cols-3 gap-6 mb-8">
                   {currentQuestion.options.map((option, index) => {
                     const isCorrect = currentQuestion.correctOptionIndex === index;
-
                     return (
                       <div key={index} className="flex flex-col items-center gap-3">
                         <div 
@@ -374,57 +322,38 @@ const CreateActivity = () => {
                           ) : (
                             <>
                               <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                              <p className="text-sm text-muted-foreground text-center px-2">Upload Photo</p>
+                              <p className="text-sm text-muted-foreground text-center px-2">Click to Upload</p>
                             </>
                           )}
                         </div>
-                        
-                        <input 
-                          ref={(el) => { imageInputRefs.current[index] = el; }} 
-                          type="file" 
-                          accept="image/*" 
-                          onChange={(e) => handleImageUpload(index, e)} 
-                          className="hidden" 
-                        />
+                        <input ref={(el) => { imageInputRefs.current[index] = el; }} type="file" accept="image/*" onChange={(e) => handleImageUpload(index, e)} className="hidden" />
                         
                         <Input 
                           value={option.label} 
-                          onChange={(e) => handleLabelChange(index, e.target.value)} 
+                          onChange={(e) => {
+                            const newOptions = [...currentQuestion.options];
+                            newOptions[index].label = e.target.value;
+                            updateCurrentQuestion({ options: newOptions });
+                          }} 
                           placeholder={`Option ${index + 1}`} 
-                          className="text-center border-0 bg-transparent font-semibold focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50" 
+                          className="text-center border-0 bg-transparent font-semibold focus-visible:ring-0" 
                         />
 
-                        <button
-                          onClick={() => handleSetCorrect(index)}
-                          className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-                            isCorrect 
-                              ? "bg-green-100 text-green-700 ring-1 ring-green-200" 
-                              : "bg-muted text-muted-foreground hover:bg-muted/80"
-                          }`}
-                        >
-                          {isCorrect ? (
-                            <>
-                              <CheckCircle className="w-4 h-4 fill-green-500 text-white" />
-                              Correct
-                            </>
-                          ) : (
-                            <>
-                              <Circle className="w-4 h-4" />
-                              Mark Correct
-                            </>
-                          )}
+                        <button onClick={() => updateCurrentQuestion({ correctOptionIndex: index })} className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium ${isCorrect ? "bg-green-100 text-green-700 ring-1 ring-green-200" : "bg-muted text-muted-foreground hover:bg-muted/80"}`}>
+                          {isCorrect ? <><CheckCircle className="w-4 h-4 fill-green-500 text-white" /> Correct</> : <><Circle className="w-4 h-4" /> Mark Correct</>}
                         </button>
                       </div>
                     );
                   })}
                 </div>
 
+                {/* Footer Controls */}
                 <div className="flex justify-center gap-4">
-                  <Button onClick={handleAddQuestion} className="rounded-full px-8 py-3 bg-secondary text-secondary-foreground hover:bg-secondary/80 gap-2">
+                  <Button onClick={() => setQuestions(prev => [...prev, { gameTitle: currentQuestion.gameTitle, questionText: "", options: [{ image: null, label: "" }, { image: null, label: "" }, { image: null, label: "" }], correctOptionIndex: 0 }])} className="rounded-full px-8 py-3 bg-secondary text-secondary-foreground hover:bg-secondary/80 gap-2">
                     <Plus className="w-5 h-5" /> Add Question
                   </Button>
                   <Button onClick={handleSave} className="rounded-full px-8 py-3 bg-green-500 hover:bg-green-600 text-white gap-2 shadow-lg hover:shadow-xl transition-all">
-                    <Save className="w-5 h-5" /> Save Game
+                    <Save className="w-5 h-5" /> Save Lesson
                   </Button>
                 </div>
               </div>

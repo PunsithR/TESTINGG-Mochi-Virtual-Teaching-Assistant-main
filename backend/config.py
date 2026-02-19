@@ -20,7 +20,8 @@ class Config:
 
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
 
-    # >>> ADD YOUR GEMINI API KEY in .env file <<<
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+
+    UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY", "")
 
     FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
