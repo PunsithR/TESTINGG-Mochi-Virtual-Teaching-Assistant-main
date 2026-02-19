@@ -11,8 +11,8 @@ import {
   Plus, 
   ChevronRight, 
   Loader2,
-  CheckCircle, // UPDATED: Added CheckCircle icon
-  Circle       // UPDATED: Added Circle icon
+  CheckCircle,
+  Circle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,7 +33,7 @@ interface QuestionData {
   gameTitle: string;
   questionText: string;
   options: ImageOption[];
-  correctOptionIndex: number; // UPDATED: Tracks the correct answer (0, 1, or 2)
+  correctOptionIndex: number;
 }
 
 const CreateActivity = () => {
@@ -57,7 +57,7 @@ const CreateActivity = () => {
         { image: null, label: "" },
         { image: null, label: "" },
       ],
-      correctOptionIndex: 0, // Default to first option being correct
+      correctOptionIndex: 0,
     },
   ]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -100,7 +100,7 @@ const CreateActivity = () => {
           label: optLabel,
           image: `https://placehold.co/600x400/orange/white?text=${encodeURIComponent(optLabel)}`
         })),
-        correctOptionIndex: 0 // UPDATED: AI usually puts the correct answer first or you can edit this manually
+        correctOptionIndex: 0 
       }));
 
       setQuestions(populatedQuestions);
@@ -120,12 +120,31 @@ const CreateActivity = () => {
   const handleSave = () => {
     const title = questions[0].gameTitle || gameTopic || "Custom Game";
     
+    const formattedQuestions = questions.map((q, index) => {
+      const correctLabel = q.options[q.correctOptionIndex]?.label || "";
+      const correctId = q.correctOptionIndex + 1; // Explicit ID calculation
+      
+      return {
+        id: index + 1,
+        questionText: q.questionText, 
+        target_item: correctLabel,
+        correct_answer: correctLabel,
+        correct_answer_id: correctId, // Saves the explicit ID
+        correctOptionIndex: q.correctOptionIndex,
+        options: q.options.map((opt, oIdx) => ({
+          id: oIdx + 1, // IDs will be 1, 2, 3
+          label: opt.label,
+          image_url: opt.image 
+        }))
+      };
+    });
+
     const newCustomGame = {
       id: Date.now().toString(),
       name: title,
       description: description || "Manually created lesson",
-      questionCount: questions.length,
-      questions: questions,
+      questionCount: formattedQuestions.length,
+      questions: formattedQuestions,
       isAiGenerated: false,
       createdAt: new Date().toISOString()
     };
@@ -180,16 +199,12 @@ const CreateActivity = () => {
     if (currentQuestionIndex < questions.length - 1) setCurrentQuestionIndex(currentQuestionIndex + 1);
   };
 
-  // --- UPDATED: Helper to set correct answer ---
   const handleSetCorrect = (index: number) => {
     updateCurrentQuestion({ correctOptionIndex: index });
   };
 
   return (
     <div className="min-h-screen bg-background p-6">
-      {/* ... (Header and Dialogs remain exactly the same as before) ... */}
-      
-      {/* (Adding this block just for completeness of the visual wrapper, but logic is same) */}
       {mode === "custom" && (
         <>
           <motion.header
@@ -209,10 +224,12 @@ const CreateActivity = () => {
         </>
       )}
 
-      {/* Dialogs ... (omitted for brevity as they haven't changed) ... */}
       <Dialog open={showModeDialog} onOpenChange={setShowModeDialog}>
          <DialogContent className="bg-card border-0 rounded-3xl p-8 max-w-md [&>button]:hidden">
-           {/* ... Same content as before ... */}
+           <div className="text-center mb-6">
+            <h2 className="text-2xl font-bold text-foreground">Create New Game</h2>
+            <p className="text-muted-foreground mt-1">Choose how you want to create your revision game</p>
+          </div>
            <div className="flex flex-col gap-4">
             <button onClick={() => handleModeSelect("custom")} className="flex items-center gap-4 p-4 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-100 text-left">
               <div className="w-14 h-14 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
@@ -238,7 +255,17 @@ const CreateActivity = () => {
       
       <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
         <DialogContent className="bg-card border-0 rounded-3xl p-8 max-w-xl [&>button]:hidden">
-          {/* ... Same AI Input content ... */}
+          <div className="flex justify-between items-center mb-1">
+            <h2 className="text-2xl font-bold text-foreground">Create New Game</h2>
+            <button 
+              onClick={() => navigate("/revision-games")} 
+              className="opacity-70 hover:opacity-100 transition-opacity"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          <p className="text-muted-foreground mb-6">Choose how you want to create your game</p>
+
           <div className="space-y-5">
             <div>
               <label className="block text-sm font-medium mb-1.5">Game Topic</label>
@@ -253,7 +280,7 @@ const CreateActivity = () => {
               <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="min-h-[100px] rounded-xl resize-none" />
             </div>
             <div className="flex gap-3 pt-2">
-              <Button variant="outline" onClick={() => { setShowAiDialog(false); setShowModeDialog(true); }} className="flex-1 h-11 rounded-full">Back</Button>
+              <Button variant="outline" onClick={() => { setShowAiDialog(false); setShowModeDialog(true); }} className="flex-1 h-11 rounded-full border-gray-200">Back</Button>
               <Button onClick={handleGenerate} disabled={isGenerating} className="flex-1 h-11 rounded-full bg-cyan-500 hover:bg-cyan-600 text-white gap-2">
                 {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Sparkles className="w-4 h-4" /> Generate & Edit</>}
               </Button>
@@ -261,7 +288,6 @@ const CreateActivity = () => {
           </div>
         </DialogContent>
       </Dialog>
-
 
       <AnimatePresence mode="wait">
         {mode === "custom" && (
@@ -272,7 +298,6 @@ const CreateActivity = () => {
             exit={{ opacity: 0, y: -20 }}
           >
             <div className="bg-card rounded-3xl shadow-soft overflow-hidden">
-              {/* Toolbar */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-border">
                 <Button variant="ghost" onClick={() => navigate("/revision-games")} className="text-muted-foreground hover:text-destructive font-semibold">
                   <X className="w-5 h-5 mr-2" /> Cancel
@@ -298,7 +323,6 @@ const CreateActivity = () => {
                 </Button>
               </div>
 
-              {/* EDITOR AREA */}
               <div className="p-8 max-w-3xl mx-auto">
                 <div className="mb-6">
                   <label className="block text-sm font-medium text-muted-foreground mb-2">Game Title</label>
@@ -319,12 +343,10 @@ const CreateActivity = () => {
 
                 <div className="grid grid-cols-3 gap-6 mb-8">
                   {currentQuestion.options.map((option, index) => {
-                    // Check if this specific option is the correct one
                     const isCorrect = currentQuestion.correctOptionIndex === index;
 
                     return (
                       <div key={index} className="flex flex-col items-center gap-3">
-                        {/* Image Box (Green border if correct) */}
                         <div 
                           onClick={() => imageInputRefs.current[index]?.click()} 
                           className={`w-full aspect-[4/5] border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer overflow-hidden relative transition-all 
@@ -348,7 +370,6 @@ const CreateActivity = () => {
                           className="hidden" 
                         />
                         
-                        {/* Label Input */}
                         <Input 
                           value={option.label} 
                           onChange={(e) => handleLabelChange(index, e.target.value)} 
@@ -356,7 +377,6 @@ const CreateActivity = () => {
                           className="text-center border-0 bg-transparent font-semibold focus-visible:ring-0 focus-visible:ring-offset-0 placeholder:text-muted-foreground/50" 
                         />
 
-                        {/* UPDATED: Correct Answer Selector */}
                         <button
                           onClick={() => handleSetCorrect(index)}
                           className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-medium transition-all ${

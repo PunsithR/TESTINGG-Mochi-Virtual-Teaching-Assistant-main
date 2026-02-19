@@ -18,31 +18,30 @@ import {
 // --- INTERFACES ---
 interface SavedGame {
   id: string;
-  name: string; // Changed 'title' to 'name' to match your storage logic
+  name: string; 
   description: string;
   questions: {
-    questionText: string; // Changed to match your CreateActivity state
+    questionText: string; 
     options: { label: string; image: string | null }[];
   }[];
   createdAt: string;
 }
 
-/** * Convert a saved game's questions into the Question format used by the game engine 
- * This ensures your custom "car" game works with the Mochi UI
- */
 const convertSavedGameQuestions = (savedGame: any): Question[] => {
   return savedGame.questions.map((q: any, idx: number) => {
-    // The correct answer is assumed to be the first option provided
-    const correctAnswer = q.options[0]?.label || "Unknown";
+    
+    const correctAnswer = q.correct_answer || (q.options[q.correctOptionIndex || 0]?.label) || "Unknown";
+    
     return {
       id: idx + 1,
       category_id: -1,
-      target_item: q.questionText || correctAnswer,
+      target_item: q.target_item || correctAnswer,
       correct_answer: correctAnswer,
+      correct_answer_id: q.correct_answer_id, // Grab the explicit ID mapping
       options: q.options.map((opt: any, optIdx: number) => ({
         id: optIdx + 1,
         label: opt.label,
-        image_url: opt.image || `https://placehold.co/300x300/e2e8f0/64748b?text=${encodeURIComponent(opt.label)}`,
+        image_url: opt.image_url || opt.image || `https://placehold.co/300x300?text=${opt.label}`,
       })),
     };
   });
@@ -64,22 +63,17 @@ const GamePage = () => {
     const loadQuestions = async () => {
       if (!categoryId) return;
 
-      // 1. Check localStorage for user-created games
       const savedGamesRaw = localStorage.getItem("created_games");
       const savedGames = savedGamesRaw ? JSON.parse(savedGamesRaw) : [];
       
-      // Look for a game matching the current ID from the URL
       const localGame = savedGames.find((g: any) => g.id.toString() === categoryId);
 
       if (localGame) {
-        // Format the local data for the game engine
         const convertedQuestions = convertSavedGameQuestions(localGame);
         setQuestions(convertedQuestions);
         setIsLoading(false);
       } else {
-        // 2. Fallback: Fetch from default categories (Fruits, Numbers, etc.)
         try {
-          // Preset IDs are numbers (1, 2, 3)
           const data = await fetchQuestions(parseInt(categoryId));
           setQuestions(data);
         } catch (error) {
@@ -100,12 +94,19 @@ const GamePage = () => {
     
     setSelectedOption(option);
     
-    // Get AI feedback from Gemini API
+    // Evaluate correctness purely on the ID mapping for 100% reliability
+    const isCorrectLocally = (currentQuestion as any).correct_answer_id 
+      ? option.id === (currentQuestion as any).correct_answer_id
+      : option.label.toLowerCase() === currentQuestion.correct_answer.toLowerCase();
+    
     const result = await fetchGeminiFeedback(
       option.label,
       currentQuestion.correct_answer,
       currentQuestion.target_item
     );
+    
+    // Override the mock API feedback with our guaranteed ID logic
+    result.isCorrect = isCorrectLocally;
     
     setFeedback(result);
     
@@ -129,6 +130,8 @@ const GamePage = () => {
         currentQuestion.correct_answer,
         currentQuestion.target_item
       );
+      // Failsafe for voice: if it doesn't match an option, it's incorrect
+      result.isCorrect = false;
       setFeedback(result);
       setShowFeedback(true);
     }
@@ -141,7 +144,6 @@ const GamePage = () => {
       setShowFeedback(false);
       setFeedback(null);
     } else {
-      // Return to gallery with score summary
       navigate("/revision-games", { state: { score, total: questions.length } });
     }
   };
@@ -219,16 +221,25 @@ const GamePage = () => {
           className="flex flex-col items-center gap-6"
         >
           <div className="grid grid-cols-3 gap-4">
-            {currentQuestion.options.map((option) => (
-              <AnswerCard
-                key={option.id}
-                option={option}
-                onSelect={handleSelectOption}
-                isSelected={selectedOption?.id === option.id}
-                isCorrect={option.label === currentQuestion.correct_answer}
-                isRevealed={showFeedback}
-              />
-            ))}
+            {currentQuestion.options.map((option) => {
+              const isOptionCorrectLocally = (currentQuestion as any).correct_answer_id
+                ? option.id === (currentQuestion as any).correct_answer_id
+                : option.label === currentQuestion.correct_answer;
+
+              return (
+                <AnswerCard
+                  key={option.id}
+                  option={option}
+                  onSelect={handleSelectOption}
+                  isSelected={selectedOption?.id === option.id}
+                  isCorrect={isOptionCorrectLocally}
+                  
+                  /* --- UPDATED LOGIC HERE --- */
+                  /* It only reveals the card if it was the one clicked, OR if the answer was correct */
+                  isRevealed={showFeedback && (selectedOption?.id === option.id || (feedback?.isCorrect ?? false))}
+                />
+              );
+            })}
           </div>
 
           <div className="mt-4">
