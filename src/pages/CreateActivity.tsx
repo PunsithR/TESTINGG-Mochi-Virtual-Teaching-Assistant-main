@@ -76,7 +76,7 @@ const CreateActivity = () => {
 
   const handleGenerate = async () => {
     if (!gameTopic || !subject || !description) {
-      alert("Please fill in Game Topic, Subject, and Description!");
+      alert("Please fill in the Theme, Learning Goal, and Description!");
       return;
     }
 
@@ -94,18 +94,20 @@ const CreateActivity = () => {
       const data = await response.json();
       
       const populatedQuestions: QuestionData[] = data.map((aiQ: any) => ({
-        gameTitle: gameTopic,
+        gameTitle: aiQ.gameTitle || gameTopic,
         questionText: aiQ.question || aiQ.questionText || "AI Question",
-        options: aiQ.options.map((optLabel: string) => ({
-          label: optLabel,
-          image: `https://placehold.co/600x400/orange/white?text=${encodeURIComponent(optLabel)}`
-        })),
+        options: aiQ.options.map((opt: any) => {
+          const optionText = typeof opt === 'string' ? opt : opt.label;
+          return {
+            label: optionText,
+            image: `https://placehold.co/600x400/orange/white?text=${encodeURIComponent(optionText)}`
+          };
+        }),
         correctOptionIndex: 0 
       }));
 
       setQuestions(populatedQuestions);
       setCurrentQuestionIndex(0); 
-
       setIsGenerating(false);
       setShowAiDialog(false); 
       setMode("custom"); 
@@ -122,17 +124,17 @@ const CreateActivity = () => {
     
     const formattedQuestions = questions.map((q, index) => {
       const correctLabel = q.options[q.correctOptionIndex]?.label || "";
-      const correctId = q.correctOptionIndex + 1; // Explicit ID calculation
+      const correctId = q.correctOptionIndex + 1;
       
       return {
         id: index + 1,
         questionText: q.questionText, 
         target_item: correctLabel,
         correct_answer: correctLabel,
-        correct_answer_id: correctId, // Saves the explicit ID
+        correct_answer_id: correctId,
         correctOptionIndex: q.correctOptionIndex,
         options: q.options.map((opt, oIdx) => ({
-          id: oIdx + 1, // IDs will be 1, 2, 3
+          id: oIdx + 1,
           label: opt.label,
           image_url: opt.image 
         }))
@@ -256,7 +258,7 @@ const CreateActivity = () => {
       <Dialog open={showAiDialog} onOpenChange={setShowAiDialog}>
         <DialogContent className="bg-card border-0 rounded-3xl p-8 max-w-xl [&>button]:hidden">
           <div className="flex justify-between items-center mb-1">
-            <h2 className="text-2xl font-bold text-foreground">Create New Game</h2>
+            <h2 className="text-2xl font-bold text-foreground">Create with Mochi AI</h2>
             <button 
               onClick={() => navigate("/revision-games")} 
               className="opacity-70 hover:opacity-100 transition-opacity"
@@ -264,25 +266,40 @@ const CreateActivity = () => {
               <X className="h-5 w-5" />
             </button>
           </div>
-          <p className="text-muted-foreground mb-6">Choose how you want to create your game</p>
+          <p className="text-muted-foreground mb-6">Mochi will help you build a fun lesson for your students!</p>
 
           <div className="space-y-5">
             <div>
-              <label className="block text-sm font-medium mb-1.5">Game Topic</label>
-              <Input value={gameTopic} onChange={(e) => setGameTopic(e.target.value)} className="h-12 rounded-xl" />
+              <label className="block text-sm font-medium mb-1.5">Game Theme (What do kids see?)</label>
+              <Input 
+                value={gameTopic} 
+                onChange={(e) => setGameTopic(e.target.value)} 
+                className="h-12 rounded-xl" 
+                placeholder="e.g. Under the Sea, Dinosaurs, Jungle Animals"
+              />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">Subject</label>
-              <Input value={subject} onChange={(e) => setSubject(e.target.value)} className="h-12 rounded-xl" />
+              <label className="block text-sm font-medium mb-1.5">Learning Goal (What's the skill?)</label>
+              <Input 
+                value={subject} 
+                onChange={(e) => setSubject(e.target.value)} 
+                className="h-12 rounded-xl" 
+                placeholder="e.g. Counting 1 to 5, Colors, Letter Sounds"
+              />
             </div>
             <div>
-              <label className="block text-sm font-medium mb-1.5">Description</label>
-              <Textarea value={description} onChange={(e) => setDescription(e.target.value)} className="min-h-[100px] rounded-xl resize-none" />
+              <label className="block text-sm font-medium mb-1.5">Mochi's Instructions (Description)</label>
+              <Textarea 
+                value={description} 
+                onChange={(e) => setDescription(e.target.value)} 
+                className="min-h-[100px] rounded-xl resize-none" 
+                placeholder="e.g. Focus on identifying red fish and counting 3 bubbles. Use very simple words."
+              />
             </div>
             <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => { setShowAiDialog(false); setShowModeDialog(true); }} className="flex-1 h-11 rounded-full border-gray-200">Back</Button>
               <Button onClick={handleGenerate} disabled={isGenerating} className="flex-1 h-11 rounded-full bg-cyan-500 hover:bg-cyan-600 text-white gap-2">
-                {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Sparkles className="w-4 h-4" /> Generate & Edit</>}
+                {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Mochi is thinking...</> : <><Sparkles className="w-4 h-4" /> Generate & Edit</>}
               </Button>
             </div>
           </div>
@@ -357,7 +374,7 @@ const CreateActivity = () => {
                           ) : (
                             <>
                               <Upload className="w-8 h-8 text-muted-foreground mb-2" />
-                              <p className="text-sm text-muted-foreground">Upload Image</p>
+                              <p className="text-sm text-muted-foreground text-center px-2">Upload Photo</p>
                             </>
                           )}
                         </div>
@@ -388,7 +405,7 @@ const CreateActivity = () => {
                           {isCorrect ? (
                             <>
                               <CheckCircle className="w-4 h-4 fill-green-500 text-white" />
-                              Correct Answer
+                              Correct
                             </>
                           ) : (
                             <>

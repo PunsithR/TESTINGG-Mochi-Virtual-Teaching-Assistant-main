@@ -8,12 +8,8 @@ Registered as a Flask Blueprint.
 from flask import Blueprint, request, jsonify
 import psycopg2.extras
 import json
-from .revision_config import (
-    get_connection,
-    generate_feedback,
-    # generate_questions, # We are replacing this logic directly in the route for custom control
-    client # Ensure client is imported from revision_config
-)
+from .revision_config import get_connection
+from .gemini_service import generate_feedback, client
 
 revision_games_bp = Blueprint("revision_games", __name__, url_prefix="/api")
 
