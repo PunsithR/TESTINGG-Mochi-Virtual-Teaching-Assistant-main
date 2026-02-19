@@ -89,28 +89,43 @@ const GamePage = () => {
 
   const currentQuestion = questions[currentQuestionIndex];
 
-  const handleSelectOption = async (option: QuestionOption) => {
+const handleSelectOption = async (option: QuestionOption) => {
     if (showFeedback) return;
     
     setSelectedOption(option);
     
-    // Evaluate correctness purely on the ID mapping for 100% reliability
+    // 1. Check if the clicked ID matches the correct ID
     const isCorrectLocally = (currentQuestion as any).correct_answer_id 
       ? option.id === (currentQuestion as any).correct_answer_id
       : option.label.toLowerCase() === currentQuestion.correct_answer.toLowerCase();
     
+    // 2. Fetch the AI feedback
     const result = await fetchGeminiFeedback(
       option.label,
       currentQuestion.correct_answer,
       currentQuestion.target_item
     );
     
-    // Override the mock API feedback with our guaranteed ID logic
+    // 3. THE TEXT FIX: Override the text to match the visual card!
     result.isCorrect = isCorrectLocally;
+    
+    const targetName = currentQuestion.target_item && currentQuestion.target_item !== "Unknown" 
+      ? currentQuestion.target_item 
+      : "correct answer";
+
+    if (isCorrectLocally) {
+      // Force success message
+      result.message = `Great job! You found the ${targetName}!`;
+      result.encouragement = "Keep it up!";
+    } else {
+      // Force try again message
+      result.message = `Close! Try finding the ${targetName}!`;
+      result.encouragement = "You can do it! Try again!";
+    }
     
     setFeedback(result);
     
-    if (result.isCorrect) {
+    if (isCorrectLocally) {
       setScore(prev => prev + 1);
     }
     
@@ -233,10 +248,7 @@ const GamePage = () => {
                   onSelect={handleSelectOption}
                   isSelected={selectedOption?.id === option.id}
                   isCorrect={isOptionCorrectLocally}
-                  
-                  /* --- UPDATED LOGIC HERE --- */
-                  /* It only reveals the card if it was the one clicked, OR if the answer was correct */
-                  isRevealed={showFeedback && (selectedOption?.id === option.id || (feedback?.isCorrect ?? false))}
+                  isRevealed={showFeedback}
                 />
               );
             })}

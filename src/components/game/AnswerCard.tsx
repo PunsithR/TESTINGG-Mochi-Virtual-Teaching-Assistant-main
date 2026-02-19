@@ -16,10 +16,17 @@ const AnswerCard = ({
   isCorrect,
   isRevealed = false,
 }: AnswerCardProps) => {
+  
   const getBorderColor = () => {
+    // Before they click anything, highlight the one they are hovering/selecting
     if (!isRevealed) return isSelected ? "ring-4 ring-primary" : "";
-    if (isCorrect) return "ring-4 ring-success";
-    if (isSelected && !isCorrect) return "ring-4 ring-warning";
+    
+    // Once they click an answer, ONLY show borders on the card they actually clicked
+    if (isSelected) {
+      return isCorrect ? "ring-4 ring-success" : "ring-4 ring-warning";
+    }
+    
+    // If they didn't click this card, keep it completely hidden! No spoilers!
     return "";
   };
 
@@ -39,7 +46,6 @@ const AnswerCard = ({
         ${getBorderColor()}
       `}
     >
-      {/* Image Container */}
       <div className="w-full aspect-square rounded-2xl overflow-hidden bg-muted">
         <img
           src={option.image_url}
@@ -49,12 +55,10 @@ const AnswerCard = ({
         />
       </div>
 
-      {/* Label */}
       <p className="mt-3 text-center text-lg font-bold text-foreground">
         {option.label}
       </p>
 
-      {/* Correct/Incorrect indicator */}
       {isRevealed && isSelected && (
         <motion.div
           initial={{ scale: 0 }}
