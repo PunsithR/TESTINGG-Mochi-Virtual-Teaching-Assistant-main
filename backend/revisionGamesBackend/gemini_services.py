@@ -116,10 +116,11 @@ def generate_questions(game_topic: str, subject: str, description: str) -> list:
         1. First, decide what the CORRECT answer is based on the Exact Scenario.
         2. You MUST write the `questionText` so it explicitly asks for that exact correct answer. 
            Format it EXACTLY like this: "Can you find the picture with [INSERT CORRECT ANSWER HERE]?"
-        3. Create one question per game topic with exactly 3 options. The correct answer must be one of the options. If asked for multiple questions make more of the amount of questions asked according to the correct scenario.
+        3. Create ONLY one question per game topic with exactly 3 options. The correct answer must be one of the options. If asked for multiple questions make more of the amount of questions asked according to the correct scenario.
         4. Create 3 options. ONE option must perfectly match the correct answer. The other TWO must be plausible wrong answers (e.g., wrong numbers or wrong colors).
-        5. The `correct_answer` field MUST exactly match the `label` of the correct option.
-        6. NEVER mention backgrounds like "tables" or "rooms" in the text.
+        5. randomize the order of the options so the correct answer isn't always in the same position.
+        6. The `correct_answer` field MUST exactly match the `label` of the correct option.
+        7. NEVER mention backgrounds like "tables" or "rooms" in the text.
         
         Respond ONLY with a JSON array in this exact format. Do not include markdown blocks.
         [

@@ -6,7 +6,7 @@ import MochiAvatar from "@/components/game/MochiAvatar";
 import AnswerCard from "@/components/game/AnswerCard";
 import FeedbackOverlay from "@/components/game/FeedbackOverlay";
 import VoiceRecorder from "@/components/game/VoiceRecorder";
-import localforage from "localforage";
+import localforage from "localforage"; 
 
 import {
   Question,
@@ -28,17 +28,20 @@ interface SavedGame {
   createdAt: string;
 }
 
+// THE FIX: Strict ID mapping instead of text matching
 const convertSavedGameQuestions = (savedGame: any): Question[] => {
   return savedGame.questions.map((q: any, idx: number) => {
     
-    const correctAnswer = q.correct_answer || (q.options[q.correctOptionIndex || 0]?.label) || "Unknown";
+    // 1. Safely grab the index you marked as correct (fallback to 0)
+    const correctIndex = q.correctOptionIndex !== undefined ? q.correctOptionIndex : 0;
+    const correctAnswerLabel = q.options[correctIndex]?.label || "Unknown";
     
     return {
       id: idx + 1,
       category_id: -1,
-      target_item: q.target_item || correctAnswer,
-      correct_answer: correctAnswer,
-      correct_answer_id: q.correct_answer_id, // Grab the explicit ID mapping
+      target_item: q.target_item || correctAnswerLabel,
+      correct_answer: correctAnswerLabel,
+      correct_answer_id: correctIndex + 1, // 2. Force it to explicitly use the ID!
       options: q.options.map((opt: any, optIdx: number) => ({
         id: optIdx + 1,
         label: opt.label,
@@ -65,7 +68,6 @@ const GamePage = () => {
       if (!categoryId) return;
 
       try {
-        // 2. Fetch directly from the heavy-duty IndexedDB
         const savedGames: any = (await localforage.getItem("created_games")) || [];
         
         const localGame = savedGames.find((g: any) => g.id.toString() === categoryId);
@@ -74,7 +76,6 @@ const GamePage = () => {
           const convertedQuestions = convertSavedGameQuestions(localGame);
           setQuestions(convertedQuestions);
         } else {
-          // Fallback to mock data if it wasn't a custom game
           const data = await fetchQuestions(parseInt(categoryId));
           setQuestions(data);
         }
@@ -95,19 +96,19 @@ const GamePage = () => {
     
     setSelectedOption(option);
     
-    // 1. Check if the clicked ID matches the correct ID
+    // 3. Check exact numeric ID, completely ignoring text casing or spaces
     const isCorrectLocally = (currentQuestion as any).correct_answer_id 
       ? option.id === (currentQuestion as any).correct_answer_id
       : option.label.toLowerCase() === currentQuestion.correct_answer.toLowerCase();
     
-    // 2. Fetch the AI feedback
+    // Fetch the AI feedback
     const result = await fetchGeminiFeedback(
       option.label,
       currentQuestion.correct_answer,
       currentQuestion.target_item
     );
     
-    // 3. THE TEXT FIX: Override the text to match the visual card!
+    // Override the AI's logic to perfectly match our ID logic
     result.isCorrect = isCorrectLocally;
     
     const targetName = currentQuestion.target_item && currentQuestion.target_item !== "Unknown" 
@@ -115,11 +116,9 @@ const GamePage = () => {
       : "correct answer";
 
     if (isCorrectLocally) {
-      // Force success message
       result.message = `Great job! You found the ${targetName}!`;
       result.encouragement = "Keep it up!";
     } else {
-      // Force try again message
       result.message = `Close! Try finding the ${targetName}!`;
       result.encouragement = "You can do it! Try again!";
     }
@@ -146,7 +145,6 @@ const GamePage = () => {
         currentQuestion.correct_answer,
         currentQuestion.target_item
       );
-      // Failsafe for voice: if it doesn't match an option, it's incorrect
       result.isCorrect = false;
       setFeedback(result);
       setShowFeedback(true);
@@ -238,6 +236,7 @@ const GamePage = () => {
         >
           <div className="grid grid-cols-3 gap-4">
             {currentQuestion.options.map((option) => {
+              // 4. Update the visual UI check to strictly use the ID too!
               const isOptionCorrectLocally = (currentQuestion as any).correct_answer_id
                 ? option.id === (currentQuestion as any).correct_answer_id
                 : option.label === currentQuestion.correct_answer;
