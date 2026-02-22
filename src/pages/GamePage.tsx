@@ -6,6 +6,7 @@ import MochiAvatar from "@/components/game/MochiAvatar";
 import AnswerCard from "@/components/game/AnswerCard";
 import FeedbackOverlay from "@/components/game/FeedbackOverlay";
 import VoiceRecorder from "@/components/game/VoiceRecorder";
+import localforage from "localforage";
 
 import {
   Question,
@@ -63,24 +64,24 @@ const GamePage = () => {
     const loadQuestions = async () => {
       if (!categoryId) return;
 
-      const savedGamesRaw = localStorage.getItem("created_games");
-      const savedGames = savedGamesRaw ? JSON.parse(savedGamesRaw) : [];
-      
-      const localGame = savedGames.find((g: any) => g.id.toString() === categoryId);
+      try {
+        // 2. Fetch directly from the heavy-duty IndexedDB
+        const savedGames: any = (await localforage.getItem("created_games")) || [];
+        
+        const localGame = savedGames.find((g: any) => g.id.toString() === categoryId);
 
-      if (localGame) {
-        const convertedQuestions = convertSavedGameQuestions(localGame);
-        setQuestions(convertedQuestions);
-        setIsLoading(false);
-      } else {
-        try {
+        if (localGame) {
+          const convertedQuestions = convertSavedGameQuestions(localGame);
+          setQuestions(convertedQuestions);
+        } else {
+          // Fallback to mock data if it wasn't a custom game
           const data = await fetchQuestions(parseInt(categoryId));
           setQuestions(data);
-        } catch (error) {
-          console.error("Failed to load mock questions:", error);
-        } finally {
-          setIsLoading(false);
         }
+      } catch (error) {
+        console.error("Failed to load questions:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
     
@@ -89,7 +90,7 @@ const GamePage = () => {
 
   const currentQuestion = questions[currentQuestionIndex];
 
-const handleSelectOption = async (option: QuestionOption) => {
+  const handleSelectOption = async (option: QuestionOption) => {
     if (showFeedback) return;
     
     setSelectedOption(option);

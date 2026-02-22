@@ -5,6 +5,7 @@ import { Plus, ArrowLeft, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CategoryCard from "@/components/game/CategoryCard";
 import { Category, fetchCategories } from "@/lib/mockData";
+import localforage from "localforage";
 
 const RevisionGames = () => {
   const navigate = useNavigate();
@@ -20,23 +21,27 @@ const RevisionGames = () => {
       const defaultData = await fetchCategories();
       setPresetGames(defaultData);
 
-      // 2. Load User-Created Games from LocalStorage
-      const savedGamesRaw = localStorage.getItem("created_games");
-      const savedGames = savedGamesRaw ? JSON.parse(savedGamesRaw) : [];
+      // 2. Load User-Created Games from LocalForage vault instead of localStorage
+      try {
+        const savedGames: any = (await localforage.getItem("created_games")) || [];
 
-      // 3. Map them to the Category format
-      const mappedSavedGames = savedGames.map((game: any) => ({
-        id: game.id,
-        name: game.name,
-        description: game.description || `${game.questions?.length || 0} question(s)`,
-        icon_url: game.questions?.[0]?.options?.[0]?.image || "https://placehold.co/600x400?text=New+Game",
-        color: "bg-white",
-        isCustom: true,
-        questionCount: game.questions?.length // ensure this is passed for the card
-      }));
+        // 3. Map them to the Category format
+        const mappedSavedGames = savedGames.map((game: any) => ({
+          id: game.id,
+          name: game.name,
+          description: game.description || `${game.questions?.length || 0} question(s)`,
+          icon_url: game.questions?.[0]?.options?.[0]?.image_url || "https://placehold.co/600x400?text=New+Game", // Make sure to use image_url here
+          color: "bg-white",
+          isCustom: true,
+          questionCount: game.questions?.length 
+        }));
 
-      setCreatedGames(mappedSavedGames);
-      setIsLoading(false);
+        setCreatedGames(mappedSavedGames);
+      } catch (error) {
+        console.error("Failed to load saved games:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     
     loadData();
@@ -46,16 +51,20 @@ const RevisionGames = () => {
     navigate(`/game/${category.id}`);
   };
 
-  const handleDeleteGame = (id: string, e: React.MouseEvent) => {
+  // 4. Must make this async to delete from localforage
+  const handleDeleteGame = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const savedGamesRaw = localStorage.getItem("created_games");
-    if (savedGamesRaw) {
-      const savedGames = JSON.parse(savedGamesRaw);
+    try {
+      const savedGames: any = (await localforage.getItem("created_games")) || [];
       const filtered = savedGames.filter((g: any) => g.id.toString() !== id.toString());
-      localStorage.setItem("created_games", JSON.stringify(filtered));
       
-      // UPDATED: Only update the createdGames state
+      // Save the filtered list back to localforage
+      await localforage.setItem("created_games", filtered);
+      
+      // Update the UI state
       setCreatedGames(prev => prev.filter(c => c.id.toString() !== id.toString()));
+    } catch (error) {
+      console.error("Failed to delete game:", error);
     }
   };
 
@@ -65,7 +74,7 @@ const RevisionGames = () => {
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between mb-8"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8"
       >
         <div className="flex items-center gap-4">
           <Button
@@ -86,7 +95,7 @@ const RevisionGames = () => {
 
         <Button
           onClick={() => navigate("/create-activity")}
-          className="bg-primary hover:bg-primary/90 rounded-full w-12 h-12 p-0 shadow-lg"
+          className="bg-primary hover:bg-primary/90 rounded-full w-12 h-12 p-0 shadow-lg shrink-0 self-end sm:self-auto"
         >
           <Plus className="w-6 h-6" />
         </Button>
@@ -117,7 +126,7 @@ const RevisionGames = () => {
                 <Button
                   variant="destructive"
                   size="icon"
-                  className="absolute top-4 right-4 rounded-full w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                  className="absolute top-4 right-4 rounded-full w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm z-10"
                   onClick={(e) => handleDeleteGame(category.id.toString(), e)}
                 >
                   <Trash2 className="w-4 h-4" />

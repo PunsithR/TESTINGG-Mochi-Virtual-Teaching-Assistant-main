@@ -21,6 +21,7 @@ import {
   Dialog,
   DialogContent,
 } from "@/components/ui/dialog";
+import localforage from "localforage";
 
 type TemplateMode = "select" | "ai" | "custom";
 
@@ -67,7 +68,7 @@ const CreateActivity = () => {
   const imageInputRefs = useRef<(HTMLInputElement | null)[]>([null, null, null]);
   const currentQuestion = questions[currentQuestionIndex];
 
-  // 1. Handle AI Generation Trigger
+  // 1. Handle AI Generation Trigger (Updated to fix Correct Answer Bug)
   const handleGenerate = async () => {
     if (!gameTopic || !subject || !description) {
       alert("Please fill in the Theme, Learning Goal, and Mochi's Instructions!");
@@ -87,16 +88,21 @@ const CreateActivity = () => {
 
       const data = await response.json();
       
-      // Map Unsplash URLs from Python backend to the Frontend state
-      const populatedQuestions: QuestionData[] = data.map((aiQ: any) => ({
-        gameTitle: aiQ.gameTitle || gameTopic,
-        questionText: aiQ.questionText || "Look at the picture!",
-        options: aiQ.options.map((opt: any) => ({
-          label: opt.label,
-          image: opt.image || null // Real Unsplash URL from backend
-        })),
-        correctOptionIndex: 0 
-      }));
+      const populatedQuestions: QuestionData[] = data.map((aiQ: any) => {
+        // Find which option matches the AI's correct answer text
+        const correctIndex = aiQ.options.findIndex((opt: any) => opt.label === aiQ.correct_answer);
+
+        return {
+          gameTitle: aiQ.gameTitle || gameTopic,
+          questionText: aiQ.questionText || "Look at the picture!",
+          options: aiQ.options.map((opt: any) => ({
+            label: opt.label,
+            image: opt.image || null 
+          })),
+          // Set to the actual correct index, or fallback to 0 if something went wrong
+          correctOptionIndex: correctIndex !== -1 ? correctIndex : 0 
+        };
+      });
 
       setQuestions(populatedQuestions);
       setCurrentQuestionIndex(0); 
@@ -111,34 +117,42 @@ const CreateActivity = () => {
     }
   };
 
-  // 2. Handle Final Save to LocalStorage
-  const handleSave = () => {
-    const title = questions[0].gameTitle || gameTopic || "Custom Game";
-    
-    const formattedQuestions = questions.map((q, index) => ({
-      id: index + 1,
-      questionText: q.questionText, 
-      correctOptionIndex: q.correctOptionIndex,
-      options: q.options.map((opt, oIdx) => ({
-        id: oIdx + 1,
-        label: opt.label,
-        image_url: opt.image 
-      }))
-    }));
+  // 2. Handle Final Save using LocalForage (Bypasses 5MB limit)
+  const handleSave = async () => {
+    try {
+      const title = questions[0].gameTitle || gameTopic || "Custom Game";
+      
+      const formattedQuestions = questions.map((q, index) => ({
+        id: index + 1,
+        questionText: q.questionText, 
+        correctOptionIndex: q.correctOptionIndex,
+        options: q.options.map((opt, oIdx) => ({
+          id: oIdx + 1,
+          label: opt.label,
+          image_url: opt.image 
+        }))
+      }));
 
-    const newCustomGame = {
-      id: Date.now().toString(),
-      name: title,
-      description: description || "Interactive Revision Game",
-      questionCount: formattedQuestions.length,
-      questions: formattedQuestions,
-      createdAt: new Date().toISOString()
-    };
+      const newCustomGame = {
+        id: Date.now().toString(),
+        name: title,
+        description: description || "Interactive Revision Game",
+        questionCount: formattedQuestions.length,
+        questions: formattedQuestions,
+        createdAt: new Date().toISOString()
+      };
 
-    const existingGames = JSON.parse(localStorage.getItem("created_games") || "[]");
-    localStorage.setItem("created_games", JSON.stringify([newCustomGame, ...existingGames]));
+      // Pull existing games from the heavy-duty IndexedDB
+      const existingGames: any = (await localforage.getItem("created_games")) || [];
+      
+      // Save the new array back to IndexedDB
+      await localforage.setItem("created_games", [newCustomGame, ...existingGames]);
 
-    navigate("/revision-games"); 
+      navigate("/revision-games"); 
+    } catch (error) {
+      console.error("Error saving game:", error);
+      alert("Failed to save the game. The images might be too large.");
+    }
   };
 
   // Helper Functions
@@ -263,7 +277,7 @@ const CreateActivity = () => {
             <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => { setShowAiDialog(false); setShowModeDialog(true); }} className="flex-1 h-11 rounded-full border-gray-200">Back</Button>
               <Button onClick={handleGenerate} disabled={isGenerating} className="flex-1 h-11 rounded-full bg-cyan-500 hover:bg-cyan-600 text-white gap-2">
-                {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Mochi is searching...</> : <><Sparkles className="w-4 h-4" /> Generate & Edit</>}
+                {isGenerating ? <><Loader2 className="w-4 h-4 animate-spin" /> Mochi is generating...</> : <><Sparkles className="w-4 h-4" /> Generate & Edit</>}
               </Button>
             </div>
           </div>
