@@ -78,7 +78,7 @@ const CreateActivity = () => {
     setIsGenerating(true);
 
     try {
-      const response = await fetch('http://localhost:5000/api/generate', {
+      const response = await fetch('http://localhost:5000/api/revision/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ gameTopic, subject, description })
@@ -148,7 +148,7 @@ const CreateActivity = () => {
       // Save the new array back to IndexedDB
       await localforage.setItem("created_games", [newCustomGame, ...existingGames]);
 
-      navigate("/revision-games"); 
+      navigate("/RevisionGames"); 
     } catch (error) {
       console.error("Error saving game:", error);
       alert("Failed to save the game. The images might be too large.");
@@ -193,7 +193,7 @@ const CreateActivity = () => {
       {mode === "custom" && (
         <>
           <motion.header initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="flex items-center gap-4 mb-6">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/revision-games")} className="rounded-full">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/RevisionGames")} className="rounded-full">
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
@@ -291,7 +291,7 @@ const CreateActivity = () => {
             <div className="bg-card rounded-3xl shadow-soft overflow-hidden">
               {/* Question Navigation Header */}
               <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-                <Button variant="ghost" onClick={() => navigate("/revision-games")} className="text-muted-foreground hover:text-destructive font-semibold">
+                <Button variant="ghost" onClick={() => navigate("/RevisionGames")} className="text-muted-foreground hover:text-destructive font-semibold">
                   <X className="w-5 h-5 mr-2" /> Cancel
                 </Button>
                 
